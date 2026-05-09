@@ -1,0 +1,163 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 160 15% 5%;
+    --foreground: 150 20% 96%;
+    --card: 160 15% 7%;
+    --card-foreground: 150 20% 96%;
+    --popover: 160 15% 6%;
+    --popover-foreground: 150 20% 96%;
+    --primary: 152 76% 60%;
+    --primary-foreground: 160 30% 8%;
+    --secondary: 160 10% 12%;
+    --secondary-foreground: 150 20% 96%;
+    --muted: 160 10% 12%;
+    --muted-foreground: 150 10% 65%;
+    --accent: 152 60% 40%;
+    --accent-foreground: 150 20% 96%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 160 15% 15%;
+    --input: 160 15% 13%;
+    --ring: 152 76% 60%;
+    --radius: 0.9rem;
+  }
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html,
+body {
+  background: #070b0a;
+  color: hsl(var(--foreground));
+  font-feature-settings: 'ss01', 'cv11';
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(59, 130, 246, 0.08), transparent 60%),
+    radial-gradient(900px 600px at 110% 10%, rgba(37, 99, 235, 0.06), transparent 60%),
+    radial-gradient(900px 800px at 50% 120%, rgba(29, 78, 216, 0.05), transparent 60%),
+    #070b0a;
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgba(59, 130, 246, 0.35);
+  color: white;
+}
+
+.glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.glow-border {
+  position: relative;
+  border-radius: var(--radius);
+}
+
+.glow-ring {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #d1fae5 0%, #6ee7b7 40%, #34d399 70%, #10b981 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.btn-glow {
+  position: relative;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  box-shadow:
+    0 4px 14px 0 rgba(59, 130, 246, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+.btn-glow:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow:
+    0 6px 20px 0 rgba(59, 130, 246, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.aurora {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.aurora::before,
+.aurora::after {
+  content: '';
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.55;
+}
+.aurora::before {
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.3), transparent 60%);
+  top: -120px;
+  left: -120px;
+  animation: float 16s ease-in-out infinite;
+}
+.aurora::after {
+  width: 620px;
+  height: 620px;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.2), transparent 60%);
+  bottom: -160px;
+  right: -160px;
+  animation: float 22s ease-in-out infinite reverse;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(40px, -30px) scale(1.08); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.45); }
+  50% { box-shadow: 0 0 0 14px rgba(52, 211, 153, 0); }
+}
+
+.pulse-dot {
+  animation: pulseGlow 2.4s ease-in-out infinite;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-up {
+  animation: fadeUp 0.7s ease forwards;
+}
+
+.scroll-hide::-webkit-scrollbar { width: 8px; }
+.scroll-hide::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 8px; }
+.scroll-hide::-webkit-scrollbar-track { background: transparent; }
+
+.grid-pattern {
+  background-image:
+    linear-gradient(rgba(59, 130, 246, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.04) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse at center, black 40%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 75%);
+}
