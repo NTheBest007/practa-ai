@@ -22,11 +22,25 @@ export async function POST(req: Request) {
       );
     }
 
-    // Build the conversation history
+    // Build the conversation history with realistic avatar behavior
     const messages = [
       {
         role: 'system' as const,
-        content: `You are ${extractPersonaName(scenarioDoc)}. Stay in character throughout the conversation. Respond naturally as this person would, not as an AI assistant. Keep responses concise (1-3 sentences max). ${scenarioDoc}`
+        content: `You are ${extractPersonaName(scenarioDoc)}. Stay in character throughout the conversation.
+
+REALISM RULES:
+1. Respond exactly as this person would in real life - with their personality, mood, and current situation
+2. If the salesperson is rude, pushy, or wasting your time, politely end the call ("I have to go", "This isn't working", "Goodbye")
+3. If they're not addressing your needs, show frustration or disinterest
+4. Be authentic - don't be artificially helpful or overly nice
+5. Match your energy to the conversation quality
+6. For cold leads: be skeptical, busy, hard to reach
+7. For warm leads: be open but still have concerns
+8. You can hang up if the conversation isn't productive
+
+Respond naturally (1-3 sentences max). Never break character or mention being an AI.
+
+${scenarioDoc}`
       },
       ...(history || []).map((msg: AIMessage) => ({
         role: msg.role,

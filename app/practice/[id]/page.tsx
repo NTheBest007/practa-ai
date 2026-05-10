@@ -113,6 +113,28 @@ export default function PracticePage() {
         throw new Error('No reply received from AI');
       }
       const reply = data.reply;
+      
+      // Check if avatar is hanging up
+      const hangUpPhrases = [
+        'i have to go',
+        'i need to go',
+        "i'm hanging up",
+        'goodbye',
+        'this is not working',
+        "i'm not interested",
+        'stop calling',
+        'do not call',
+        'click',
+        'dial tone',
+        'call ended',
+        'they hung up',
+        '*click*',
+        '*beep*',
+        '*dial tone*'
+      ];
+      const lowerReply = reply.toLowerCase();
+      const isHungUp = hangUpPhrases.some(phrase => lowerReply.includes(phrase));
+      
       const { data: aiMsg } = await supabase
         .from('messages')
         .insert({ session_id: id, role: 'assistant', content: reply })
@@ -124,6 +146,12 @@ export default function PracticePage() {
         setTimeout(() => {
           // VoicePlayer will handle auto-play when mounted with autoPlay prop
         }, 500);
+        
+        // If avatar hung up, end session automatically
+        if (isHungUp) {
+          toast.warning('The prospect hung up. Ending session...');
+          setTimeout(() => endSession(), 2000);
+        }
       }
     } catch (e) {
       console.error('Chat error:', e);
