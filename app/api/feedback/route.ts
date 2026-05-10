@@ -27,108 +27,182 @@ function analyzeTranscript(transcript: AIMessage[]) {
   const userMessages = transcript.filter(m => m.role === 'user');
   const assistantMessages = transcript.filter(m => m.role === 'assistant');
   const allText = transcript.map(m => m.content.toLowerCase()).join(' ');
+  const allUserText = userMessages.map(m => m.content.toLowerCase()).join(' ');
   
-  // Scoring factors
-  let score = 50; // Base score
+  // Check for call ending/hang up
+  const lastAssistantMessage = assistantMessages[assistantMessages.length - 1]?.content.toLowerCase() || '';
+  const didHangUp = /(i'm hanging up|this call is over|goodbye|have to go|dial tone|click)/.test(lastAssistantMessage);
+  
+  // Check for rude/profane behavior
+  const rudeWords = ['fuck', 'shit', 'asshole', 'dumb', 'stupid', 'idiot', 'moron', 'jerk', 'screw you', 'piss off'];
+  const wasRude = rudeWords.some(word => allUserText.includes(word));
+  
+  // Scoring factors - start at 50 base
+  let score = 50;
   const strengths: string[] = [];
   const weaknesses: string[] = [];
   const suggestions: string[] = [];
   const missedOpportunities: string[] = [];
   
-  // 1. Discovery/Qualifying (20 points)
+  // === NEGATIVE BEHAVIOR PENALTIES (Must check first) ===
+  
+  // 1. Prospect hung up - MAJOR penalty (-30 points)
+  if (didHangUp) {
+    score -= 30;
+    weaknesses.push('Prospect hung up - conversation was not productive');
+    suggestions.push('Avoid being rude or offensive; prospects will end calls');
+    suggestions.push('Focus on building rapport before pitching');
+    missedOpportunities.push('Lost the entire opportunity due to poor approach');
+  }
+  
+  // 2. Profanity/Rudeness - Severe penalty (-25 points)
+  if (wasRude) {
+    score -= 25;
+    weaknesses.push('Used inappropriate language/profanity');
+    suggestions.push('Always maintain professionalism, even when frustrated');
+    suggestions.push('Never insult prospects - it destroys all trust');
+    missedOpportunities.push('Professional relationship destroyed by poor behavior');
+  }
+  
+  // 3. Aggressive/Pushy behavior (-15 points)
+  const aggressivePhrases = ['you need to', 'you must', 'trust me', 'just buy', 'sign up now', 'close the deal'];
+  const wasAggressive = aggressivePhrases.some(phrase => allUserText.includes(phrase));
+  if (wasAggressive && !didHangUp) {
+    score -= 15;
+    weaknesses.push('Came across as pushy or aggressive');
+    suggestions.push('Use consultative approach instead of hard selling');
+    suggestions.push('Ask permission before making recommendations');
+    missedOpportunities.push('Pushy approach creates resistance and damages trust');
+  }
+  
+  // === POSITIVE BEHAVIOR SCORING ===
+  
+  // 4. Discovery/Qualifying (up to 20 points)
   const discoveryQuestions = countDiscoveryQuestions(userMessages);
-  if (discoveryQuestions >= 3) {
-    score += 15;
-    strengths.push('Asked excellent discovery questions to understand needs');
+  const hasProblemQuestions = /\b(what|how|why|tell me|walk me|describe|explain)\b.*\b(challenge|problem|pain|issue|concern|goal|need|priority)\b/.test(allUserText);
+  
+  if (discoveryQuestions >= 4 && hasProblemQuestions) {
+    score += 20;
+    strengths.push('Excellent discovery - asked targeted questions about pain points and goals');
+  } else if (discoveryQuestions >= 2) {
+    score += 12;
+    strengths.push('Good discovery - asked questions to understand needs');
   } else if (discoveryQuestions >= 1) {
-    score += 8;
-    strengths.push('Asked some discovery questions');
-  } else {
-    weaknesses.push('Failed to ask discovery questions');
-    suggestions.push('Ask more open-ended questions about their business needs');
-    missedOpportunities.push('Could have uncovered pain points by asking about challenges');
+    score += 5;
+    strengths.push('Some discovery attempts');
+  } else if (!didHangUp) {
+    score -= 10;
+    weaknesses.push('No discovery questions - jumped straight to pitch');
+    suggestions.push('Start with questions about their situation before presenting solutions');
+    missedOpportunities.push('Missed chance to uncover specific pain points and tailor your pitch');
   }
   
-  // 2. Listening vs Talking (15 points)
+  // 5. Listening Ratio (up to 15 points)
   const userToAssistantRatio = userMessages.length / (assistantMessages.length || 1);
-  if (userToAssistantRatio > 0.7) {
-    score += 10;
-    strengths.push('Great listening - let prospect talk more than selling');
-  } else if (userToAssistantRatio > 0.4) {
-    score += 5;
-    strengths.push('Balanced conversation');
-  } else {
-    weaknesses.push('Talked too much, didn\'t listen enough');
-    suggestions.push('Ask more questions and talk less');
-    missedOpportunities.push('Could have built more rapport by listening');
+  const userWordCount = allUserText.split(/\s+/).length;
+  const assistantWordCount = assistantMessages.map(m => m.content).join(' ').split(/\s+/).length;
+  const listeningRatio = assistantWordCount / (userWordCount || 1);
+  
+  if (userToAssistantRatio >= 0.5 && listeningRatio > 1.2) {
+    score += 15;
+    strengths.push('Great listening - let prospect express themselves fully');
+  } else if (userToAssistantRatio >= 0.4) {
+    score += 8;
+    strengths.push('Good balance - engaged in two-way conversation');
+  } else if (userToAssistantRatio < 0.3 && userMessages.length > 2) {
+    score -= 8;
+    weaknesses.push('Talked too much, dominated the conversation');
+    suggestions.push('Follow 70/30 rule - prospect should talk 70% of the time');
+    missedOpportunities.push('Missed valuable information by not listening enough');
   }
   
-  // 3. Handling Objections (15 points)
-  const objectionHandling = analyzeObjectionHandling(transcript);
-  if (objectionHandling.handled) {
-    score += 12;
-    strengths.push('Handled objections professionally by agreeing first');
-  } else if (objectionHandling.present) {
-    score += 5;
-    weaknesses.push('Missed opportunity to handle objection properly');
+  // 6. Handling Objections (up to 15 points)
+  const objections = detectObjections(transcript);
+  if (objections.handledWell.length > 0) {
+    score += 15;
+    strengths.push(`Handled ${objections.handledWell.length} objection(s) professionally by agreeing first`);
+  } else if (objections.present.length > 0) {
+    score -= 5;
+    weaknesses.push('Objections were raised but not properly addressed');
     suggestions.push('Always agree with objections before addressing them');
-    missedOpportunities.push('Could have built trust by agreeing with concerns');
+    suggestions.push('Use "I understand" or "That makes sense" before responding');
+    missedOpportunities.push('Objections left unresolved - prospect likely lost');
   }
   
-  // 4. Value Communication (15 points)
-  const valueMentioned = /(value|benefit|save|increase|reduce|improve|roi|return)/.test(allText);
-  if (valueMentioned) {
+  // 7. Value Communication (up to 15 points)
+  const valueScore = calculateValueScore(allUserText);
+  if (valueScore >= 3) {
+    score += 15;
+    strengths.push('Strong value communication - connected solution to business outcomes');
+  } else if (valueScore >= 2) {
+    score += 8;
+    strengths.push('Mentioned benefits and value');
+  } else if (valueScore >= 1) {
+    score += 3;
+  } else if (!didHangUp && userMessages.length > 2) {
+    score -= 10;
+    weaknesses.push('No clear value proposition presented');
+    suggestions.push('Always articulate how your solution solves their specific problem');
+    suggestions.push('Quantify value when possible (ROI, time saved, revenue gained)');
+    missedOpportunities.push('Failed to differentiate from competitors by showing unique value');
+  }
+  
+  // 8. Next Steps/Closing (up to 15 points)
+  const closingScore = calculateClosingScore(allUserText, didHangUp);
+  if (closingScore === 'committed') {
+    score += 15;
+    strengths.push('Secured clear commitment with specific next steps');
+  } else if (closingScore === 'attempted') {
+    score += 5;
+    strengths.push('Attempted to establish next steps');
+    weaknesses.push('Did not get firm commitment from prospect');
+    suggestions.push('Always confirm specific date, time, and agenda for follow-up');
+    missedOpportunities.push('Soft commitment often leads to no-shows and lost deals');
+  } else if (closingScore === 'none' && !didHangUp && userMessages.length > 3) {
+    score -= 12;
+    weaknesses.push('No closing attempt - conversation ended without direction');
+    suggestions.push('Every sales conversation needs a clear next step');
+    suggestions.push('Ask: "When would be a good time to schedule a follow-up?"');
+    missedOpportunities.push('Conversation drifted to a close without advancing the sale');
+  }
+  
+  // 9. Rapport & Agreement (up to 10 points)
+  const rapportScore = calculateRapportScore(transcript);
+  if (rapportScore >= 3) {
     score += 10;
-    strengths.push('Communicated value and benefits');
-  } else {
-    weaknesses.push('Didn\'t communicate clear value proposition');
-    suggestions.push('Always connect your solution to business value');
-    missedOpportunities.push('Could have shown ROI or business impact');
+    strengths.push('Built strong rapport through agreement and validation');
+  } else if (rapportScore >= 2) {
+    score += 5;
+    strengths.push('Established good connection');
+  } else if (rapportScore === 0 && !didHangUp && userMessages.length > 2) {
+    score -= 8;
+    weaknesses.push('Little rapport building - too transactional');
+    suggestions.push('Start conversations with agreement and validation');
+    suggestions.push('Find common ground before diving into business');
+    missedOpportunities.push('People buy from people they like and trust');
   }
   
-  // 5. Next Steps/Closing (15 points)
-  const nextSteps = analyzeNextSteps(transcript);
-  if (nextSteps.clear) {
-    score += 12;
-    strengths.push('Established clear next steps');
-  } else if (nextSteps.mentioned) {
-    score += 6;
-    weaknesses.push('Mentioned next steps but didn\'t get commitment');
-    suggestions.push('Always secure specific, time-bound next steps');
-    missedOpportunities.push('Could have scheduled follow-up or next meeting');
-  } else {
-    weaknesses.push('No clear next steps or closing');
-    suggestions.push('Always end with specific next steps');
-    missedOpportunities.push('Lost opportunity to advance the sale');
-  }
-  
-  // 6. Rapport Building (10 points)
-  const rapportBuilt = analyzeRapport(transcript);
-  if (rapportBuilt) {
-    score += 8;
-    strengths.push('Built good rapport through agreement and small talk');
-  } else {
-    weaknesses.push('Could have built better rapport');
-    suggestions.push('Start with agreement and build personal connection');
-    missedOpportunities.push('Could have established stronger connection');
-  }
-  
-  // 7. Professional Frame (10 points)
-  const professionalFrame = analyzeFrame(transcript);
-  if (professionalFrame) {
-    score += 8;
-    strengths.push('Maintained confident, professional frame');
-  } else {
-    weaknesses.push('Frame could be more confident');
-    suggestions.push('Project confidence and act as the expert');
-    missedOpportunities.push('Could have positioned self more strongly');
+  // 10. Professional Frame (up to 10 points)
+  const frameScore = calculateFrameScore(allUserText);
+  if (frameScore === 'expert') {
+    score += 10;
+    strengths.push('Positioned as trusted expert, not just another salesperson');
+  } else if (frameScore === 'consultant') {
+    score += 5;
+    strengths.push('Consultative approach showed expertise');
+  } else if (frameScore === 'needy') {
+    score -= 12;
+    weaknesses.push('Came across as needy or desperate for the sale');
+    suggestions.push('Project confidence - you are the expert with valuable solutions');
+    suggestions.push('Avoid phrases like "I really need this" or "Please just try it"');
+    missedOpportunities.push('Neediness destroys perceived value and repels prospects');
   }
   
   // Ensure score is within bounds
   score = Math.max(0, Math.min(100, score));
   
   // Generate summary
-  const summary = generateSummary(score, strengths, weaknesses);
+  const summary = generateSummary(score, strengths, weaknesses, didHangUp, wasRude);
   
   return {
     score,
@@ -259,15 +333,148 @@ function analyzeFrame(transcript: AIMessage[]): boolean {
   return hasConfident && !hasNeedy;
 }
 
-function generateSummary(score: number, strengths: string[], weaknesses: string[]): string {
+function detectObjections(transcript: AIMessage[]): { handledWell: string[]; present: string[] } {
+  const objectionPatterns = [
+    { pattern: /(too much|expensive|cost|price|budget|money)/, type: 'price' },
+    { pattern: /(think about it|consider|need time|let me think)/, type: 'stalling' },
+    { pattern: /(send info|more information|email me details)/, type: 'info_request' },
+    { pattern: /(not interested|don't need|already have|happy with current)/, type: 'not_interested' },
+    { pattern: /(too busy|no time|call back later|in a meeting)/, type: 'busy' },
+    { pattern: /(not looking|not searching|no budget)/, type: 'no_budget' }
+  ];
+  
+  const handledWell: string[] = [];
+  const present: string[] = [];
+  
+  for (let i = 0; i < transcript.length; i++) {
+    const msg = transcript[i];
+    if (msg.role === 'assistant') {
+      const objection = objectionPatterns.find(o => o.pattern.test(msg.content.toLowerCase()));
+      if (objection) {
+        // Check if next user message shows agreement
+        if (i + 1 < transcript.length) {
+          const nextMsg = transcript[i + 1];
+          if (nextMsg.role === 'user') {
+            const agreed = /(i understand|i get it|that makes sense|you're right|completely agree)/.test(nextMsg.content.toLowerCase());
+            if (agreed) {
+              handledWell.push(objection.type);
+            } else {
+              present.push(objection.type);
+            }
+          }
+        } else {
+          present.push(objection.type);
+        }
+      }
+    }
+  }
+  
+  return { handledWell, present };
+}
+
+function calculateValueScore(userText: string): number {
+  let score = 0;
+  const valueIndicators = [
+    /\b(save|cut|reduce|decrease|lower)\b.*\b(cost|expense|spending|time)\b/,
+    /\b(increase|boost|grow|improve|enhance)\b.*\b(revenue|sales|profit|roi|return)\b/,
+    /\b(value|benefit|advantage|gain|outcome|result)\b/,
+    /\b(roi|return on investment|payback|break even)\b/,
+    /\b(\d+%|\$\d+|\d+ dollars|times|x more)\b/
+  ];
+  
+  valueIndicators.forEach(pattern => {
+    if (pattern.test(userText)) score++;
+  });
+  
+  return score;
+}
+
+function calculateClosingScore(userText: string, didHangUp: boolean): 'committed' | 'attempted' | 'none' {
+  if (didHangUp) return 'none';
+  
+  const commitmentPatterns = [
+    /\b(yes|sure|absolutely|definitely|let's do it|sounds good)\b.*\b(schedule|book|set up|next|tomorrow|monday|tuesday|wednesday|thursday|friday)\b/,
+    /\b(send|email)\b.*\b(proposal|contract|agreement|details|information)\b/,
+    /\b(calendly|calendar|appointment|meeting|call)\b.*\b(next|tomorrow|this week|next week)\b/
+  ];
+  
+  const attemptedPatterns = [
+    /\b(next step|follow up|touch base|check in|get back to you)\b/,
+    /\b(when|what time)\b.*\b(work|good for you|available|free)\b/
+  ];
+  
+  const isCommitted = commitmentPatterns.some(p => p.test(userText));
+  const isAttempted = attemptedPatterns.some(p => p.test(userText));
+  
+  if (isCommitted) return 'committed';
+  if (isAttempted) return 'attempted';
+  return 'none';
+}
+
+function calculateRapportScore(transcript: AIMessage[]): number {
+  let score = 0;
+  const agreementPatterns = [
+    /\b(i understand|i get it|that makes sense|you're right|exactly|absolutely|totally)\b/,
+    /\b(i agree|good point|well said|that's true)\b/
+  ];
+  
+  const personalPatterns = [
+    /\b(how are you|how's your|how was your|how is the)\b/,
+    /\b(great to connect|nice to meet|pleasure speaking|appreciate your time)\b/,
+    /\b(your business|your company|your team|your situation)\b/
+  ];
+  
+  transcript.forEach(msg => {
+    if (msg.role === 'user') {
+      if (agreementPatterns.some(p => p.test(msg.content.toLowerCase()))) score++;
+      if (personalPatterns.some(p => p.test(msg.content.toLowerCase()))) score++;
+    }
+  });
+  
+  return Math.min(score, 5);
+}
+
+function calculateFrameScore(userText: string): 'expert' | 'consultant' | 'needy' | 'neutral' {
+  const expertPatterns = [
+    /\b(based on my experience|what i've seen|typically|in my work with)\b/,
+    /\b(recommend|suggest|advise|guide|help you)\b/,
+    /\b(expert|specialist|consultant|professional|solution)\b/,
+    /\b(best practice|industry standard|proven|effective approach)\b/
+  ];
+  
+  const needyPatterns = [
+    /\b(i really need|please|if you could just|just give me a chance)\b/,
+    /\b(desperate|struggling|really hoping|counting on you)\b/,
+    /\b(discount|cheaper|lower price|match|beat)\b/,
+    /\b(special deal|one time offer|limited time|act now)\b/
+  ];
+  
+  const expertCount = expertPatterns.filter(p => p.test(userText)).length;
+  const needyCount = needyPatterns.filter(p => p.test(userText)).length;
+  
+  if (needyCount >= 2) return 'needy';
+  if (expertCount >= 2) return 'expert';
+  if (expertCount >= 1) return 'consultant';
+  return 'neutral';
+}
+
+function generateSummary(score: number, strengths: string[], weaknesses: string[], didHangUp: boolean, wasRude: boolean): string {
+  if (wasRude) {
+    return 'Unprofessional behavior severely damaged the sales opportunity. Professionalism is fundamental to sales success.';
+  }
+  if (didHangUp) {
+    return 'The prospect hung up, indicating the approach was ineffective. Focus on building rapport and providing value early in conversations.';
+  }
   if (score >= 85) {
-    return 'Excellent sales execution. Strong fundamentals with minimal areas for improvement.';
+    return 'Excellent sales execution! You demonstrated strong discovery, effective listening, and clear value communication. Keep refining these skills.';
   } else if (score >= 70) {
-    return 'Good overall performance with clear strengths. Focus on the identified areas to reach excellence.';
+    return 'Good performance with solid fundamentals. You showed strengths in key areas while having clear opportunities for improvement.';
   } else if (score >= 55) {
-    return 'Developing sales skills present. Address the key weaknesses to significantly improve performance.';
+    return 'Developing skills with room for growth. Focus on the specific areas highlighted to significantly improve your sales effectiveness.';
+  } else if (score >= 40) {
+    return 'Several key sales fundamentals need attention. Work on discovery, rapport building, and value communication to improve results.';
   } else {
-    return 'Major gaps in sales fundamentals. Focus on building core skills before advanced techniques.';
+    return 'Major gaps in sales approach. Focus on core skills: ask questions first, build rapport, and communicate value before pitching.';
   }
 }
 
