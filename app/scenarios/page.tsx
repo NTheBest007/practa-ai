@@ -6,12 +6,13 @@ import { AppShell } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { supabase, Scenario } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import { useRevenueCat } from '@/hooks/use-revenuecat';
 import { generateScenarioEmbeddings, checkScenarioEmbeddings } from '@/lib/embeddings';
-import { ArrowRight, Loader as Loader2, Brain } from 'lucide-react';
+import { ArrowRight, Loader as Loader2, Brain, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ScenariosPage() {
-  const { user } = useAuth();
+  const { user, subscription, subscriptionLoading } = useAuth();
   const router = useRouter();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +43,27 @@ export default function ScenariosPage() {
   }, []);
 
   async function startSession(scenarioId: string) {
+    if (!user) return;
+    
     setStarting(scenarioId);
+    
+    // Track usage
+    try {
+      await fetch('/api/subscription/track-usage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          scenarioId: scenarioId,
+        }),
+      });
+      useRevenueCat.track('scenario_started', {
+        scenarioId,
+      });
+    } catch (error) {
+      console.error('Failed to track usage:', error);
+    }
+    
     try {
       const { data: session } = await supabase
         .from('sessions')
@@ -56,6 +77,14 @@ export default function ScenariosPage() {
       setStarting(null);
     }
   }
+  
+  const getUsageForScenario = (scenarioId: string) => {
+    if (!subscription) return { used: 0, limit: 1 };
+    return {
+      used: subscription.usage[scenarioId] || 0,
+      limit: subscription.limits[scenarioId] || 1,
+    };
+  };
 
   async function generateEmbeddingsForScenario(scenarioId: string, googleDocContent: string) {
     setGeneratingEmbeddings(scenarioId);
@@ -92,6 +121,8 @@ export default function ScenariosPage() {
         <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {scenarios.map((s) => {
             const hasEmbeddings = embeddingStatus[s.id];
+            const usage = getUsageForScenario(s.id);
+            const isAtLimit = usage.used >= usage.limit;
 
             return (
               <div
@@ -107,7 +138,7 @@ export default function ScenariosPage() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
                   <div className="absolute bottom-3 left-4 right-4">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <div className="rounded-full bg-emerald-400/15 px-2.5 py-1 text-[11px] font-medium text-emerald-200 ring-1 ring-emerald-400/25 w-fit backdrop-blur">
                         Live Roleplay
                       </div>
@@ -115,6 +146,15 @@ export default function ScenariosPage() {
                         <div className="rounded-full bg-blue-400/15 px-2.5 py-1 text-[11px] font-medium text-blue-200 ring-1 ring-blue-400/25 w-fit backdrop-blur flex items-center gap-1">
                           <Brain className="h-3 w-3" />
                           AI Enhanced
+                        </div>
+                      )}
+                      {!subscriptionLoading && (
+                        <div className={`rounded-full px-2.5 py-1 text-[11px] font-medium w-fit backdrop-blur flex items-center gap-1 ${
+                          isAtLimit 
+                            ? 'bg-amber-400/15 text-amber-200 ring-1 ring-amber-400/25' 
+                            : 'bg-white/10 text-white/70 ring-1 ring-white/20'
+                        }`}>
+                          {usage.used}/{usage.limit} calls
                         </div>
                       )}
                     </div>
@@ -155,10 +195,19 @@ export default function ScenariosPage() {
                     <Button
                       disabled={starting === s.id}
                       onClick={() => startSession(s.id)}
-                      className="btn-glow h-10 w-full rounded-xl font-semibold"
+                      className={`h-10 w-full rounded-xl font-semibold ${
+                        isAtLimit 
+                          ? 'bg-amber-500 hover:bg-amber-600' 
+                          : 'btn-glow'
+                      }`}
                     >
                       {starting === s.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : isAtLimit ? (
+                        <>
+                          <Lock className="mr-2 h-4 w-4" />
+                          Start anyway
+                        </>
                       ) : (
                         <>
                           Start session <ArrowRight className="ml-2 h-4 w-4" />

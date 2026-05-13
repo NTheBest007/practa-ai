@@ -63,3 +63,27 @@ export type SkillProgression = {
   session_id: string;
   created_at: string;
 };
+
+export type UserSubscription = {
+  id: string;
+  user_id: string;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  plan_type: 'free' | 'premium';
+  status: 'active' | 'canceled' | 'past_due' | 'incomplete';
+  current_period_start: string | null;
+  current_period_end: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ScenarioUsage = {
+  id: string;
+  user_id: string;
+  scenario_id: string;
+  sessions_count: number;
+  period_start: string;
+  period_end: string;
+  created_at: string;
+  updated_at: string;
+};

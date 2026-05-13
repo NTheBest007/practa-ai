@@ -6,13 +6,13 @@ import { AppShell } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { supabase, Scenario, Session } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
-import { ArrowRight, Play, Clock, Sparkles } from 'lucide-react';
+import { ArrowRight, Play, Clock, Sparkles, Crown, Zap } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 type SessionWithScenario = Session & { scenario: Scenario | null };
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, subscription, subscriptionLoading } = useAuth();
   const [sessions, setSessions] = useState<SessionWithScenario[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -46,6 +46,80 @@ export default function DashboardPage() {
           </Button>
         </Link>
       </div>
+
+      {/* Subscription Status Card */}
+      {!subscriptionLoading && subscription && (
+        <div className="mt-8">
+          <div className={`glass glow-border rounded-2xl p-5 ${
+            subscription.plan === 'pro' ? 'border-emerald-400/30' : ''
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${
+                  subscription.plan === 'pro' 
+                    ? 'bg-emerald-500/20 ring-1 ring-emerald-500/30' 
+                    : 'bg-white/5 ring-1 ring-white/10'
+                }`}>
+                  {subscription.plan === 'pro' ? (
+                    <Crown className="h-6 w-6 text-emerald-400" />
+                  ) : (
+                    <Zap className="h-6 w-6 text-white/60" />
+                  )}
+                </div>
+                <div>
+                  <div className="font-semibold">
+                    {subscription.plan === 'pro' ? 'Pro Plan' : 'Free Plan'}
+                  </div>
+                  <div className="text-sm text-white/50">
+                    {subscription.totalUsed}/{subscription.totalLimit} total calls used
+                    {subscription.currentPeriodEnd && subscription.plan === 'pro' && (
+                      <span className="ml-2">
+                        • Renews {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {subscription.plan !== 'pro' && (
+                  <Button
+                    onClick={async () => {
+                      if (!user) return;
+                      try {
+                        const res = await fetch('/api/subscription/manual-upgrade', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ userId: user.id }),
+                        });
+                        if (res.ok) {
+                          alert('Upgraded to premium! Refreshing...');
+                          window.location.reload();
+                        } else {
+                          alert('Upgrade failed');
+                        }
+                      } catch (error) {
+                        alert('Upgrade failed');
+                      }
+                    }}
+                    variant="outline"
+                    className="text-xs"
+                  >
+                    Force Upgrade
+                  </Button>
+                )}
+                <Link href="/pricing">
+                  <Button 
+                    variant={subscription.plan === 'pro' ? 'outline' : 'default'}
+                    className={subscription.plan === 'pro' ? '' : 'btn-glow'}
+                  >
+                    {subscription.plan === 'pro' ? 'Manage' : 'Upgrade'}
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mt-10">
         <div className="mb-4 flex items-center justify-between">
