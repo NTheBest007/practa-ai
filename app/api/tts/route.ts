@@ -14,10 +14,7 @@ export async function POST(req: Request) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       console.error('OpenAI API key not found in environment variables');
-      // Return a mock response for testing without API key
-      return NextResponse.json({ 
-        error: 'Speech synthesis unavailable - OpenAI API key not configured. Add OPENAI_API_KEY to your environment variables to enable voice features.' 
-      }, { status: 500 });
+      return NextResponse.json({ error: 'Coming soon', details: 'Voice synthesis will be available soon' }, { status: 503 });
     }
 
     // Call OpenAI TTS API
@@ -38,7 +35,7 @@ export async function POST(req: Request) {
     if (!ttsResponse.ok) {
       const error = await ttsResponse.text();
       console.error('TTS API error:', error);
-      return NextResponse.json({ error: 'Speech synthesis failed' }, { status: 500 });
+      return NextResponse.json({ error: 'Coming soon', details: 'Voice synthesis temporarily unavailable' }, { status: 503 });
     }
     
     const audioBuffer = await ttsResponse.arrayBuffer();

@@ -460,21 +460,21 @@ function calculateFrameScore(userText: string): 'expert' | 'consultant' | 'needy
 
 function generateSummary(score: number, strengths: string[], weaknesses: string[], didHangUp: boolean, wasRude: boolean): string {
   if (wasRude) {
-    return 'Unprofessional behavior severely damaged the sales opportunity. Professionalism is fundamental to sales success.';
+    return 'Professionalism is non-negotiable in sales. Using inappropriate language or displaying negative attitude destroys trust instantly and damages your reputation. In real sales situations, this behavior would result in lost opportunities and potential blacklisting. Practice maintaining composure even in challenging conversations.';
   }
   if (didHangUp) {
-    return 'The prospect hung up, indicating the approach was ineffective. Focus on building rapport and providing value early in conversations.';
+    return 'The prospect hung up during your call, which signals a breakdown in rapport or value delivery. Prospects hang up when they feel pressured, disrespected, or when the conversation isn\'t worth their time. To prevent this: start with genuine curiosity about their situation, respect their time constraints, and ensure every statement adds value. A hung-up call is a lost opportunity - focus on keeping prospects engaged through relevance and respect.';
   }
   if (score >= 85) {
-    return 'Excellent sales execution! You demonstrated strong discovery, effective listening, and clear value communication. Keep refining these skills.';
+    return 'Outstanding performance! You demonstrated sophisticated sales skills across multiple dimensions. Your discovery questions uncovered real needs, you maintained excellent listening balance, and communicated value effectively. You positioned yourself as a trusted advisor rather than just another salesperson. To reach elite level: practice handling objections even more smoothly, work on creating urgency without pressure, and refine your closing techniques for higher conversion rates.';
   } else if (score >= 70) {
-    return 'Good performance with solid fundamentals. You showed strengths in key areas while having clear opportunities for improvement.';
+    return 'Strong performance with solid sales fundamentals in place. You showed capability in key areas like discovery and value communication, while demonstrating professional rapport-building skills. Your approach was consultative and customer-focused. Focus areas for improvement: dig deeper in discovery (ask follow-up questions), improve your listening ratio further, and work on securing firmer next-step commitments. With refinement in these areas, you\'ll see significant improvement in conversion rates.';
   } else if (score >= 55) {
-    return 'Developing skills with room for growth. Focus on the specific areas highlighted to significantly improve your sales effectiveness.';
+    return 'Developing competency with clear growth trajectory. You demonstrated some effective sales behaviors while having specific areas needing attention. The foundation is there - now it\'s about strengthening execution. Priority improvements: start every call with strong discovery before pitching, focus on understanding needs over talking about features, and work on handling objections with agreement-first approach. Consistent practice in these areas will significantly improve your results within weeks.';
   } else if (score >= 40) {
-    return 'Several key sales fundamentals need attention. Work on discovery, rapport building, and value communication to improve results.';
+    return 'Several core sales fundamentals need development. The good news: these are learnable skills that improve with focused practice. Immediate priorities: (1) Never pitch before understanding their situation - ask 3-4 discovery questions first, (2) Listen 70% of the time - if you\'re talking more than the prospect, you\'re losing, (3) Connect every feature to a specific benefit they care about. Study successful sales calls, practice your opening, and focus on being genuinely curious about your prospects.';
   } else {
-    return 'Major gaps in sales approach. Focus on core skills: ask questions first, build rapport, and communicate value before pitching.';
+    return 'This call revealed significant gaps in sales approach that are holding back your effectiveness. Sales success requires a fundamental mindset shift: stop trying to sell and start trying to help. Immediate action items: (1) Master the discovery phase - ask questions about their challenges, goals, and current situation before mentioning your solution, (2) Build rapport through genuine interest and agreement, not forced friendliness, (3) Communicate value in terms they understand - ROI, time saved, problems solved. Consider working through basic sales training modules and practicing with simpler scenarios first.';
   }
 }
 

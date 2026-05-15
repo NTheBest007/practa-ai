@@ -12,7 +12,7 @@ import { ArrowRight, Loader as Loader2, Brain, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ScenariosPage() {
-  const { user, subscription, subscriptionLoading } = useAuth();
+  const { user, subscription, subscriptionLoading, refreshSubscription } = useAuth();
   const router = useRouter();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,9 +57,9 @@ export default function ScenariosPage() {
           scenarioId: scenarioId,
         }),
       });
-      useRevenueCat.track('scenario_started', {
-        scenarioId,
-      });
+      // useRevenueCat.track('scenario_started', { scenarioId });
+      // Refresh subscription to update the counter
+      await refreshSubscription();
     } catch (error) {
       console.error('Failed to track usage:', error);
     }

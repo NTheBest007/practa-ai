@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getServiceSupabaseClient } from '@/lib/supabase-service';
 
 export async function POST(req: Request) {
   try {
+    const supabase = getServiceSupabaseClient();
     const { userId, scenarioId } = await req.json();
+
+    console.log('[track-usage] Called with:', { userId, scenarioId });
 
     if (!userId || !scenarioId) {
       return NextResponse.json(
@@ -18,6 +21,8 @@ export async function POST(req: Request) {
       .select('plan_type, current_period_end')
       .eq('user_id', userId)
       .maybeSingle();
+
+    console.log('[track-usage] Subscription:', subscription);
 
     const isPremium = subscription?.plan_type === 'premium';
     
@@ -36,15 +41,19 @@ export async function POST(req: Request) {
       periodEnd = new Date(8640000000000000).toISOString(); // Far future
     }
 
+    console.log('[track-usage] Period:', { periodStart, periodEnd, isPremium });
+
     // Check if usage record exists for this period
     const { data: existingUsage } = await supabase
       .from('scenario_usage')
       .select('id, sessions_count')
       .eq('user_id', userId)
       .eq('scenario_id', scenarioId)
-      .lte('period_start', periodStart)
-      .gte('period_end', periodEnd)
+      .eq('period_start', periodStart)
+      .eq('period_end', periodEnd)
       .maybeSingle();
+
+    console.log('[track-usage] Existing usage:', existingUsage);
 
     if (existingUsage) {
       // Update existing record
@@ -57,12 +66,13 @@ export async function POST(req: Request) {
         .eq('id', existingUsage.id);
 
       if (error) {
-        console.error('Error updating usage:', error);
+        console.error('[track-usage] Error updating usage:', error);
         return NextResponse.json(
           { error: 'Failed to track usage' },
           { status: 500 }
         );
       }
+      console.log('[track-usage] Updated usage to:', existingUsage.sessions_count + 1);
     } else {
       // Create new usage record
       const { error } = await supabase
@@ -76,12 +86,13 @@ export async function POST(req: Request) {
         });
 
       if (error) {
-        console.error('Error creating usage:', error);
+        console.error('[track-usage] Error creating usage:', error);
         return NextResponse.json(
           { error: 'Failed to track usage' },
           { status: 500 }
         );
       }
+      console.log('[track-usage] Created new usage record');
     }
 
     return NextResponse.json({ success: true });

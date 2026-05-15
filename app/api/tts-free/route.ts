@@ -10,16 +10,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No text provided' }, { status: 400 });
     }
 
-    // For free TTS, we'll use a simple approach
-    // The actual TTS will be handled client-side using Web Speech API
-    // This endpoint just validates the request and returns the text
-    
-    return NextResponse.json({ 
-      text: text,
-      voice: voice,
-      useWebSpeech: true,
-      message: 'Use browser Web Speech API for free TTS'
-    });
+    // Free TTS is not available - voice synthesis coming soon
+    return NextResponse.json({ error: 'Coming soon', details: 'Voice synthesis will be available soon' }, { status: 503 });
   } catch (error) {
     console.error('Free TTS error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

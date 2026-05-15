@@ -18,7 +18,8 @@ import Link from 'next/link';
 export default function PracticePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, subscription } = useAuth();
+  const isPro = subscription?.plan === 'pro';
 
   const [scenario, setScenario] = useState<Scenario | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -32,6 +33,7 @@ export default function PracticePage() {
   const [isMinimized, setIsMinimized] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasShownVoiceToastRef = useRef(false);
 
   useEffect(() => {
     if (!user || !id) return;
@@ -114,23 +116,49 @@ export default function PracticePage() {
       }
       const reply = data.reply;
       
-      // Check if avatar is hanging up
+      // Check if avatar is hanging up - natural human phrases
       const hangUpPhrases = [
         'i have to go',
         'i need to go',
         "i'm hanging up",
+        "i've got to run",
+        'got to run',
+        "gotta run",
+        "this isn't going anywhere",
+        'not going anywhere',
+        "i'm gonna have to let you go",
+        'let you go',
+        'gotta hop off',
+        'hop off',
+        "i'm out",
+        "i'm done",
+        "i'm tapping out",
+        'tapping out',
+        "i'm bailing",
+        'gotta bail',
+        "i've got another call",
+        'another call coming in',
+        "this isn't for me",
+        "i'm good, thanks",
+        "not interested, bye",
         'goodbye',
-        'this is not working',
-        "i'm not interested",
-        'stop calling',
-        'do not call',
-        'click',
-        'dial tone',
-        'call ended',
-        'they hung up',
+        'bye.',
+        'bye now',
+        "i'm out",
+        'this is going nowhere',
+        'call drops',
+        'line goes quiet',
         '*click*',
         '*beep*',
-        '*dial tone*'
+        '*dial tone*',
+        '*line goes dead*',
+        'line goes dead',
+        'call ended',
+        'they hung up',
+        "i'm through",
+        "we're done here",
+        'take care.',
+        "i gotta go"
       ];
       const lowerReply = reply.toLowerCase();
       const isHungUp = hangUpPhrases.some(phrase => lowerReply.includes(phrase));
@@ -142,6 +170,7 @@ export default function PracticePage() {
         .maybeSingle();
       if (aiMsg) {
         setMessages((m) => [...m, aiMsg as Message]);
+        // Voice toast shown via useEffect above
         // Auto-play AI response with TTS
         setTimeout(() => {
           // VoicePlayer will handle auto-play when mounted with autoPlay prop
@@ -244,6 +273,17 @@ export default function PracticePage() {
     }
   }
 
+  // Show voice toast once on first user message
+  useEffect(() => {
+    if (messages.length > 0 && !hasShownVoiceToastRef.current) {
+      const hasAssistantMessage = messages.some(m => m.role === 'assistant');
+      if (hasAssistantMessage) {
+        toast.info('Voice synthesis coming soon', { duration: 3000 });
+        hasShownVoiceToastRef.current = true;
+      }
+    }
+  }, [messages]);
+
   return (
     <AppShell>
       {loading || !scenario ? (
@@ -251,18 +291,20 @@ export default function PracticePage() {
           <Loader2 className="h-6 w-6 animate-spin text-emerald-400" />
         </div>
       ) : (
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-4 max-w-2xl mx-auto">
+          {/* Header Row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
               <Link
                 href="/scenarios"
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
               >
                 <ArrowLeft className="h-4 w-4" />
               </Link>
-              <span className="text-xs text-white/50">
-                AI Voice Active
-              </span>
+              <div>
+                <h1 className="text-sm font-medium text-white">{scenario.name}</h1>
+                <p className="text-xs text-white/40">Practice Session</p>
+              </div>
             </div>
             <Button
               disabled={ending}
@@ -299,10 +341,10 @@ export default function PracticePage() {
                 </div>
               )}
               {messages.map((m) => (
-                <div key={m.id}>
+                <div key={m.id} className="space-y-2">
                   <ChatBubble message={m} avatar={scenario.avatar_url} />
                   {m.role === 'assistant' && (
-                    <div className="flex justify-end mt-2">
+                    <div className="flex justify-end pl-12">
                       <UnifiedVoicePlayer 
                         text={m.content} 
                         autoPlay={true}
@@ -371,6 +413,7 @@ export default function PracticePage() {
         scenario={scenario}
         isMinimized={isMinimized}
         onToggleMinimize={() => setIsMinimized(!isMinimized)}
+        isPro={isPro}
       />
     </AppShell>
   );
@@ -379,9 +422,9 @@ export default function PracticePage() {
 function ChatBubble({ message, avatar }: { message: Message; avatar: string }) {
   const isUser = message.role === 'user';
   return (
-    <div className={`flex items-start gap-3 ${isUser ? 'justify-end' : ''}`}>
+    <div className={`flex items-start gap-2 ${isUser ? 'justify-end' : ''}`}>
       {!isUser && (
-        <div className="mt-1 h-9 w-9 shrink-0 overflow-hidden rounded-full ring-2 ring-emerald-400/20">
+        <div className="mt-1 h-8 w-8 shrink-0 overflow-hidden rounded-full ring-2 ring-emerald-400/20">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={avatar} alt="" className="h-full w-full object-cover" />
         </div>
@@ -389,8 +432,8 @@ function ChatBubble({ message, avatar }: { message: Message; avatar: string }) {
       <div
         className={
           isUser
-            ? 'max-w-[78%] rounded-2xl rounded-tr-sm bg-gradient-to-br from-emerald-400 to-emerald-600 px-4 py-3 text-[15px] leading-relaxed text-emerald-950 shadow-lg shadow-emerald-500/20'
-            : 'max-w-[78%] rounded-2xl rounded-tl-sm border border-white/5 bg-white/[0.03] px-4 py-3 text-[15px] leading-relaxed text-white/90'
+            ? 'max-w-[80%] rounded-2xl rounded-tr-sm bg-gradient-to-br from-emerald-400 to-emerald-600 px-3 py-2 text-sm leading-relaxed text-emerald-950 shadow-lg shadow-emerald-500/20 break-words'
+            : 'max-w-[80%] rounded-2xl rounded-tl-sm border border-white/5 bg-white/[0.03] px-3 py-2 pr-10 text-sm leading-relaxed text-white/90 break-words'
         }
       >
         {message.content}

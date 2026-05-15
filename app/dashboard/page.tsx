@@ -8,13 +8,57 @@ import { supabase, Scenario, Session } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { ArrowRight, Play, Clock, Sparkles, Crown, Zap } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 
 type SessionWithScenario = Session & { scenario: Scenario | null };
 
 export default function DashboardPage() {
-  const { user, subscription, subscriptionLoading } = useAuth();
+  const { user, subscription, subscriptionLoading, refreshSubscription } =
+    useAuth();
   const [sessions, setSessions] = useState<SessionWithScenario[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // After Stripe Checkout: confirm session server-side (sets Pro even if webhook failed), then refresh plan
+  useEffect(() => {
+    if (!user || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('subscription') !== 'success') return;
+
+    let cancelled = false;
+    const sync = async () => {
+      const sessionId = params.get('session_id');
+      try {
+        if (sessionId) {
+          const res = await fetch('/api/subscription/confirm-checkout', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-user-id': user.id,
+            },
+            body: JSON.stringify({ sessionId }),
+          });
+          if (res.ok) {
+            toast.success('You are on Pro — subscription activated.');
+          } else {
+            const t = await res.text();
+            console.error('[dashboard] confirm-checkout', res.status, t);
+            toast.error('Could not confirm subscription. Check console / try Refresh.');
+          }
+        }
+      } finally {
+        if (!cancelled) await refreshSubscription();
+        if (!cancelled) await new Promise((r) => setTimeout(r, 1500));
+        if (!cancelled) await refreshSubscription();
+        if (!cancelled) {
+          window.history.replaceState({}, '', '/dashboard');
+        }
+      }
+    };
+    void sync();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, refreshSubscription]);
 
   useEffect(() => {
     if (!user) return;
@@ -81,32 +125,6 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="flex gap-2">
-                {subscription.plan !== 'pro' && (
-                  <Button
-                    onClick={async () => {
-                      if (!user) return;
-                      try {
-                        const res = await fetch('/api/subscription/manual-upgrade', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ userId: user.id }),
-                        });
-                        if (res.ok) {
-                          alert('Upgraded to premium! Refreshing...');
-                          window.location.reload();
-                        } else {
-                          alert('Upgrade failed');
-                        }
-                      } catch (error) {
-                        alert('Upgrade failed');
-                      }
-                    }}
-                    variant="outline"
-                    className="text-xs"
-                  >
-                    Force Upgrade
-                  </Button>
-                )}
                 <Link href="/pricing">
                   <Button 
                     variant={subscription.plan === 'pro' ? 'outline' : 'default'}

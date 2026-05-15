@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getServiceSupabaseClient } from '@/lib/supabase-service';
 
 export async function GET(req: Request) {
   try {
@@ -13,6 +13,8 @@ export async function GET(req: Request) {
       );
     }
 
+    const supabase = getServiceSupabaseClient();
+
     // Get user's subscription
     const { data: subscription } = await supabase
       .from('user_subscriptions')
@@ -20,23 +22,33 @@ export async function GET(req: Request) {
       .eq('user_id', userId)
       .maybeSingle();
 
-    // Default to free if no subscription record
-    const plan = subscription?.plan_type || 'free';
-    const limit = plan === 'premium' ? 50 : 1;
+    // DB uses plan_type 'premium'; client expects plan 'pro'
+    const rawPlan = subscription?.plan_type ?? 'free';
+    const isPro = rawPlan === 'premium' || rawPlan === 'pro';
+    const plan: 'free' | 'pro' = isPro ? 'pro' : 'free';
+    const limit = isPro ? 50 : 1;
 
     // Get all scenarios to calculate usage per scenario
     const { data: scenarios } = await supabase
       .from('scenarios')
       .select('id');
 
+    console.log('[subscription/check] Scenarios:', scenarios);
+
     // Get usage for current period
     const now = new Date().toISOString();
-    const { data: usage } = await supabase
+    console.log('[subscription/check] Current time:', now);
+    
+    // Try a simpler query first - just get all usage for this user
+    const { data: allUsage } = await supabase
       .from('scenario_usage')
-      .select('scenario_id, sessions_count')
-      .eq('user_id', userId)
-      .lte('period_start', now)
-      .gte('period_end', now);
+      .select('scenario_id, sessions_count, period_start, period_end')
+      .eq('user_id', userId);
+    
+    console.log('[subscription/check] All usage records:', allUsage);
+    
+    // For now, use all usage records (we can filter by period later if needed)
+    const usage = allUsage;
 
     // Build usage map
     const usageMap: Record<string, number> = {};
@@ -48,9 +60,12 @@ export async function GET(req: Request) {
       limitsMap[scenario.id] = limit;
     });
 
-    // Calculate totals
+    console.log('[subscription/check] Usage map:', usageMap);
+
+    // Calculate totals (if no scenario rows exist yet, avoid 0/0 in the UI)
     const totalUsed = Object.values(usageMap).reduce((sum, count) => sum + count, 0);
-    const totalLimit = (scenarios?.length || 0) * limit;
+    const scenarioCount = scenarios?.length ?? 0;
+    const totalLimit = scenarioCount > 0 ? scenarioCount * limit : limit;
 
     return NextResponse.json({
       plan,

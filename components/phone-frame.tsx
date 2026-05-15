@@ -71,11 +71,11 @@ export function PhoneFrame({
   }
 
   return (
-    <div className="relative mx-auto max-w-md">
+    <div className="relative mx-auto max-w-md z-10 mt-4">
       {/* Phone Frame */}
-      <div className="relative glass glow-border rounded-[3rem] p-2 bg-gradient-to-br from-slate-900/50 to-black/50">
+      <div className="relative glass glow-border rounded-[2rem] p-2 bg-gradient-to-br from-slate-900/50 to-black/50">
         {/* Phone Screen */}
-        <div className="relative rounded-[2.5rem] bg-black/90 overflow-hidden">
+        <div className="relative rounded-[1.8rem] bg-black/90 overflow-hidden">
           {/* Status Bar */}
           <div className="flex items-center justify-between px-6 py-2 text-xs text-white/80">
             <span>{formatTime(callDuration)}</span>
@@ -116,13 +116,13 @@ export function PhoneFrame({
             </div>
           </div>
 
-          {/* Conversation Area */}
-          <div className="h-[400px] overflow-y-auto bg-black/50">
+          {/* Conversation Area - with padding for controls and proper height */}
+          <div className="h-[360px] overflow-y-auto bg-black/50 pb-28 pt-2">
             {children}
           </div>
 
           {/* Call Controls */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-6">
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/95 to-transparent p-6 pt-8">
             <div className="flex items-center justify-center gap-4">
               {/* Mute Button */}
               <Button

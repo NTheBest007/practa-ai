@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import Stripe from 'stripe';
-import { supabase } from '@/lib/supabase';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+import { getServiceSupabaseClient } from '@/lib/supabase-service';
+import { getStripeServer } from '@/lib/stripe-server';
 
 export async function POST(req: Request) {
   try {
+    const stripe = getStripeServer();
+    const supabase = getServiceSupabaseClient();
     const { userId } = await req.json();
 
     if (!userId) {

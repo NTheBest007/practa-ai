@@ -129,7 +129,8 @@ export function VoicePlayerWithFallback({
     }
 
     if (!success) {
-      toast.error('All voice options failed. Text will display without audio.');
+      // Don't show error toast - just silent fail with coming soon indicator
+      console.log('[Voice] All TTS options failed - showing coming soon');
     }
 
     setIsLoading(false);
@@ -222,8 +223,8 @@ export function VoicePlayerWithFallback({
       }
 
       case 'free': {
-        // Free mode uses Web Speech API - no server call needed
-        return 'free-mode';
+        // Don't use browser fallback - show coming soon instead
+        return null;
       }
 
       default:
@@ -232,43 +233,21 @@ export function VoicePlayerWithFallback({
   };
 
   const playFreeMode = () => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1;
-      utterance.pitch = 1;
-      
-      const voices = window.speechSynthesis.getVoices();
-      const preferredVoice = voices.find(v => v.name.includes('Google') || v.name.includes('Samantha'));
-      if (preferredVoice) {
-        utterance.voice = preferredVoice;
-      }
-
-      utterance.onstart = () => setIsPlaying(true);
-      utterance.onend = () => setIsPlaying(false);
-      utterance.onerror = () => {
-        setIsPlaying(false);
-        toast.error('Browser speech failed');
-      };
-
-      window.speechSynthesis.speak(utterance);
-    } else {
-      toast.error('Browser does not support speech synthesis');
-    }
+    // Browser fallback disabled - show coming soon
+    toast.info('Voice synthesis coming soon', { duration: 2000 });
   };
 
   const play = () => {
     if (currentMode === 'free') {
       playFreeMode();
-    } else if (audioRef.current && audioUrl && audioUrl !== 'free-mode') {
+    } else if (audioRef.current && audioUrl) {
       audioRef.current.volume = isMuted ? 0 : 1;
       audioRef.current.play();
     }
   };
 
   const pause = () => {
-    if (currentMode === 'free') {
-      window.speechSynthesis?.cancel();
-    }
+    // No browser speech to cancel
     if (audioRef.current) {
       audioRef.current.pause();
     }
@@ -307,7 +286,7 @@ export function VoicePlayerWithFallback({
             )}
           </Button>
           
-          {audioUrl && audioUrl !== 'free-mode' && (
+          {audioUrl && (
             <audio
               ref={(ref) => {
                 if (ref) {

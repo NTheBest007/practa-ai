@@ -4,8 +4,6 @@ import { Inter } from 'next/font/google';
 import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider } from '@/lib/auth-context';
 import { DebugProvider } from '@/lib/debug-context';
-import { DebugPanel } from '@/components/debug-panel';
-import { DevModeIndicator } from '@/components/dev-mode-indicator';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -27,8 +25,6 @@ export default function RootLayout({
           <DebugProvider>
             {children}
             <Toaster theme="dark" />
-            <DebugPanel />
-            <DevModeIndicator />
           </DebugProvider>
         </AuthProvider>
       </body>

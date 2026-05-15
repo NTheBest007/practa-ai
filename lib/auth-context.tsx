@@ -1,6 +1,14 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  ReactNode,
+} from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { initializeRevenueCat, changeUser } from './revenuecat';
@@ -35,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
-  const fetchSubscription = async (userId: string) => {
+  const fetchSubscription = useCallback(async (userId: string) => {
     setSubscriptionLoading(true);
     try {
       const res = await fetch('/api/subscription/check', {
@@ -46,12 +54,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const data = await res.json();
         setSubscription(data);
+      } else {
+        const detail = await res.text().catch(() => '');
+        console.error(
+          '[subscription/check]',
+          res.status,
+          detail.slice(0, 500)
+        );
       }
     } catch (error) {
       console.error('Error fetching subscription:', error);
     }
     setSubscriptionLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -82,40 +97,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => sub.subscription.unsubscribe();
-  }, []);
+  }, [fetchSubscription]);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error?.message ?? null };
-  };
+  }, []);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signUp({ email, password });
     return { error: error?.message ?? null };
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setSubscription(null);
-  };
+  }, []);
 
-  const refreshSubscription = async () => {
+  const refreshSubscription = useCallback(async () => {
     if (user) {
       await fetchSubscription(user.id);
     }
-  };
+  }, [user, fetchSubscription]);
 
-  return (
-    <AuthContext.Provider value={{ 
-      user, 
-      loading, 
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
       subscription,
       subscriptionLoading,
-      signIn, 
-      signUp, 
+      signIn,
+      signUp,
       signOut,
-      refreshSubscription 
-    }}>
+      refreshSubscription,
+    }),
+    [
+      user,
+      loading,
+      subscription,
+      subscriptionLoading,
+      signIn,
+      signUp,
+      signOut,
+      refreshSubscription,
+    ]
+  );
+
+  return (
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

@@ -236,7 +236,7 @@ export async function generateSpeech(
       console.log(`[TTS] Trying ${prov}...`);
       const result = await tryTTSProvider(prov, text, voice, avatarUrl);
       console.log(`[TTS] ${prov} success`);
-      toast.success(`${prov} voice active`, { duration: 1500 });
+      // No toast on success - keep UI clean
       return { audioUrl: result, provider: prov, success: true };
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
@@ -246,7 +246,7 @@ export async function generateSpeech(
   }
   
   console.error('[TTS] All providers failed');
-  toast.error('Voice synthesis unavailable. Using browser fallback.');
+  // No toast here - handled at session level
   return { audioUrl: '', provider: 'none', success: false };
 }
 

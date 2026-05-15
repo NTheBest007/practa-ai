@@ -16,7 +16,7 @@ export async function POST(req: Request) {
 
     const apiKey = process.env.CAMB_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: 'CAMB.AI API key not configured' }, { status: 500 });
+      return NextResponse.json({ error: 'Coming soon', details: 'Voice synthesis will be available soon' }, { status: 503 });
     }
 
     // Call CAMB.AI TTS API
@@ -37,9 +37,7 @@ export async function POST(req: Request) {
     if (!ttsResponse.ok) {
       const error = await ttsResponse.text();
       console.error('CAMB.AI API error:', error);
-      return NextResponse.json({ 
-        error: `CAMB.AI API error: ${ttsResponse.status} - ${error.substring(0, 200)}` 
-      }, { status: 500 });
+      return NextResponse.json({ error: 'Coming soon', details: 'Voice synthesis temporarily unavailable' }, { status: 503 });
     }
     
     const data = await ttsResponse.json();

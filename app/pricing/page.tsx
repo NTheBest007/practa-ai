@@ -98,7 +98,7 @@ export default function PricingPage() {
               variant="outline"
               disabled={isLoading || isPro}
             >
-              {isPro ? 'Current Plan (Upgraded)' : 'Current Plan'}
+              {isPro ? 'Included with Pro' : 'Current Plan'}
             </Button>
           </Card>
 

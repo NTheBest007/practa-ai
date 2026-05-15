@@ -26,9 +26,7 @@ export async function POST(req: Request) {
     const apiKey = process.env.GOOGLE_TTS_API_KEY;
     if (!apiKey) {
       console.error('Google TTS API key not found');
-      return NextResponse.json({ 
-        error: 'Google TTS unavailable - API key not configured' 
-      }, { status: 500 });
+      return NextResponse.json({ error: 'Coming soon', details: 'Voice synthesis will be available soon' }, { status: 503 });
     }
 
     // Select voice based on avatar
@@ -76,7 +74,7 @@ export async function POST(req: Request) {
     if (!ttsResponse.ok) {
       const error = await ttsResponse.text();
       console.error('Google TTS API error:', error);
-      return NextResponse.json({ error: 'Speech synthesis failed' }, { status: 500 });
+      return NextResponse.json({ error: 'Coming soon', details: 'Voice synthesis temporarily unavailable' }, { status: 503 });
     }
     
     const { audioContent } = await ttsResponse.json();

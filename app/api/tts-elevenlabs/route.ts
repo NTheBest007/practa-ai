@@ -23,9 +23,9 @@ export async function POST(req: Request) {
       console.error('[ElevenLabs API] API key not found in environment');
       console.error('[ElevenLabs API] Checked: ELEVENLABS_API_KEY, ELEVENLABS_API');
       return NextResponse.json({ 
-        error: 'ElevenLabs TTS unavailable - API key not configured',
-        details: 'Add ELEVENLABS_API or ELEVENLABS_API_KEY to .env.local'
-      }, { status: 500 });
+        error: 'Coming soon',
+        details: 'ElevenLabs voice synthesis will be available soon'
+      }, { status: 503 });
     }
 
     // Select voice based on avatar - use new avatar-based selection
@@ -78,9 +78,9 @@ export async function POST(req: Request) {
       const error = await ttsResponse.text();
       console.error('[ElevenLabs API] Error response:', error);
       return NextResponse.json({ 
-        error: `ElevenLabs API error: ${ttsResponse.status}`,
-        details: error.substring(0, 500)
-      }, { status: 500 });
+        error: 'Coming soon',
+        details: 'Voice synthesis temporarily unavailable'
+      }, { status: 503 });
     }
     
     console.log('[ElevenLabs API] Success - converting audio');

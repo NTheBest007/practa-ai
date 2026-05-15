@@ -35,9 +35,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="relative min-h-screen">
       <div className="aurora" />
-      <header className="sticky top-0 z-40">
-        <div className="mx-auto max-w-7xl px-6 pt-5">
-          <div className="glass glow-border flex items-center justify-between rounded-2xl px-4 py-2.5">
+      <header className="sticky top-0 z-50 bg-[#070b0a]/80 backdrop-blur-xl border-b border-white/5">
+        <div className="mx-auto max-w-7xl px-6 py-3">
+          <div className="flex items-center justify-between">
             <Link href="/dashboard">
               <Logo />
             </Link>
@@ -77,7 +77,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="relative mx-auto max-w-7xl px-6 pb-24 pt-10">{children}</main>
+      <main className="relative mx-auto max-w-7xl px-6 pb-24 pt-6">{children}</main>
     </div>
   );
 }

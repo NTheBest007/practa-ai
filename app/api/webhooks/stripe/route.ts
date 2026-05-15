@@ -1,16 +1,19 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { supabase } from '@/lib/supabase';
+import { getServiceSupabaseClient } from '@/lib/supabase-service';
+import { getStripeServer } from '@/lib/stripe-server';
+import { stripeUnixSecondsToIso } from '@/lib/stripe-period';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(req: Request) {
   try {
+    const stripe = getStripeServer();
     const payload = await req.text();
     const signature = req.headers.get('stripe-signature')!;
 
     let event: Stripe.Event;
+    const supabase = getServiceSupabaseClient();
 
     try {
       event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
@@ -41,26 +44,48 @@ export async function POST(req: Request) {
           break;
         }
 
+        const periodStart = stripeUnixSecondsToIso(stripeSub.current_period_start);
+        const periodEnd = stripeUnixSecondsToIso(stripeSub.current_period_end);
+        const upsertRow: Record<string, unknown> = {
+          user_id: userId,
+          stripe_customer_id: customerId,
+          stripe_subscription_id: subscriptionId,
+          plan_type: 'premium',
+          status: 'active',
+          updated_at: new Date().toISOString(),
+        };
+        if (periodStart) upsertRow.current_period_start = periodStart;
+        if (periodEnd) upsertRow.current_period_end = periodEnd;
+
         // Update user's subscription to premium
         const { error } = await supabase
           .from('user_subscriptions')
-          .upsert({
-            user_id: userId,
-            stripe_customer_id: customerId,
-            stripe_subscription_id: subscriptionId,
-            plan_type: 'premium',
-            status: 'active',
-            current_period_start: new Date(stripeSub.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(stripeSub.current_period_end * 1000).toISOString(),
-            updated_at: new Date().toISOString(),
-          }, {
-            onConflict: 'user_id'
+          .upsert(upsertRow, {
+            onConflict: 'user_id',
           });
 
         if (error) {
           console.error('Error updating subscription:', error);
         } else {
           console.log('User upgraded to premium:', userId);
+
+          // Migrate existing usage to new billing period to preserve call counts
+          if (periodStart && periodEnd) {
+            const { error: migrateError } = await supabase.rpc(
+              'migrate_usage_on_upgrade',
+              {
+                p_user_id: userId,
+                p_new_period_start: periodStart,
+                p_new_period_end: periodEnd,
+              }
+            );
+
+            if (migrateError) {
+              console.error('Error migrating usage:', migrateError);
+            } else {
+              console.log('Usage migrated for user:', userId);
+            }
+          }
         }
         break;
       }
@@ -83,11 +108,12 @@ export async function POST(req: Request) {
           .maybeSingle();
 
         if (userSub) {
+          const newEndIso = stripeUnixSecondsToIso(stripeSub.current_period_end);
           const oldPeriodEnd = new Date(userSub.current_period_end || 0);
-          const newPeriodEnd = new Date(stripeSub.current_period_end * 1000);
+          const newPeriodEnd = newEndIso ? new Date(newEndIso) : null;
 
           // Check if this is a new billing period (subscription renewed)
-          if (newPeriodEnd > oldPeriodEnd) {
+          if (newPeriodEnd && newPeriodEnd > oldPeriodEnd) {
             // Reset scenario usage for the new period
             const { error: deleteError } = await supabase
               .from('scenario_usage')
@@ -102,15 +128,18 @@ export async function POST(req: Request) {
             }
           }
 
+          const periodStart = stripeUnixSecondsToIso(stripeSub.current_period_start);
+          const updateRow: Record<string, unknown> = {
+            status: 'active',
+            updated_at: new Date().toISOString(),
+          };
+          if (periodStart) updateRow.current_period_start = periodStart;
+          if (newEndIso) updateRow.current_period_end = newEndIso;
+
           // Update subscription period
           await supabase
             .from('user_subscriptions')
-            .update({
-              status: 'active',
-              current_period_start: new Date(stripeSub.current_period_start * 1000).toISOString(),
-              current_period_end: newPeriodEnd.toISOString(),
-              updated_at: new Date().toISOString(),
-            })
+            .update(updateRow)
             .eq('stripe_subscription_id', subscriptionId);
         }
         break;
@@ -137,15 +166,23 @@ export async function POST(req: Request) {
       case 'customer.subscription.updated': {
         const updatedSub: any = event.data.object;
 
+        const periodEnd = stripeUnixSecondsToIso(updatedSub.current_period_end);
+        const updateSubRow: Record<string, unknown> = {
+          status:
+            updatedSub.status === 'active'
+              ? 'active'
+              : updatedSub.status === 'canceled'
+                ? 'canceled'
+                : updatedSub.status === 'past_due'
+                  ? 'past_due'
+                  : 'incomplete',
+          updated_at: new Date().toISOString(),
+        };
+        if (periodEnd) updateSubRow.current_period_end = periodEnd;
+
         await supabase
           .from('user_subscriptions')
-          .update({
-            status: updatedSub.status === 'active' ? 'active' : 
-                    updatedSub.status === 'canceled' ? 'canceled' : 
-                    updatedSub.status === 'past_due' ? 'past_due' : 'incomplete',
-            current_period_end: new Date(updatedSub.current_period_end * 1000).toISOString(),
-            updated_at: new Date().toISOString(),
-          })
+          .update(updateSubRow)
           .eq('stripe_subscription_id', updatedSub.id);
 
         console.log('Subscription updated:', updatedSub.id, updatedSub.status);

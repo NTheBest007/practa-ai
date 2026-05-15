@@ -105,8 +105,8 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     isRunning: false,
   });
 
-  // Debug Mode State
-  const [isDebugMode, setIsDebugMode] = useState(true); // Default ON for dev
+  // Debug Mode State (panel/indicator removed from layout; stays off unless toggled in-app later)
+  const [isDebugMode, setIsDebugMode] = useState(false);
 
   // ============================================
   // ACTIONS

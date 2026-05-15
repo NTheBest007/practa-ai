@@ -10,9 +10,11 @@ import {
   AlertCircle,
   CheckCircle2,
   ArrowRight,
-  Mic2
+  Mic2,
+  Crown
 } from 'lucide-react';
 import { useDebug } from '@/lib/debug-context';
+import { useAuth } from '@/lib/auth-context';
 
 interface CoachingTip {
   id: string;
@@ -27,19 +29,55 @@ interface RealtimeCoachNewProps {
   scenario: { name: string; avatar_url: string } | null;
   isMinimized?: boolean;
   onToggleMinimize?: () => void;
+  isPro?: boolean;
 }
 
 export function RealtimeCoachNew({ 
   messages, 
   scenario, 
   isMinimized = false, 
-  onToggleMinimize 
+  onToggleMinimize,
+  isPro = false
 }: RealtimeCoachNewProps) {
+  // Show pro upgrade prompt for free users
+  if (!isPro) {
+    return (
+      <div className="fixed bottom-24 right-4 z-40 w-80">
+        <div className="rounded-2xl border border-purple-400/30 bg-slate-900/95 backdrop-blur-md shadow-xl shadow-purple-400/10 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center">
+                <Crown className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-white text-sm">Live Coach</h3>
+                <p className="text-[10px] text-white/50">Pro Feature</p>
+              </div>
+            </div>
+          </div>
+          <div className="p-4 text-center">
+            <p className="text-sm text-white/70 mb-3">
+              Get real-time coaching tips during your calls
+            </p>
+            <Button 
+              size="sm" 
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              onClick={() => window.location.href = '/pricing'}
+            >
+              <Crown className="h-3 w-3 mr-2" />
+              Upgrade to Pro
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const [tips, setTips] = useState<CoachingTip[]>([]);
   const [currentTip, setCurrentTip] = useState<CoachingTip | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
-  const coachingRef = useRef<{ 
+  const [showHistory, setShowHistory] = useState(false);
+  const coachingRef = useRef<{
     timeout: NodeJS.Timeout | null;
     isActive: boolean;
     lastProcessedHash: string;
@@ -243,7 +281,7 @@ export function RealtimeCoachNew({
 
   if (isMinimized) {
     return (
-      <div className="fixed bottom-20 right-4 z-40">
+      <div className="fixed bottom-24 right-4 z-40">
         <Button
           onClick={onToggleMinimize}
           className="h-12 w-12 rounded-full border border-purple-400/30 bg-purple-400/10 text-purple-300 hover:bg-purple-400/20 shadow-lg shadow-purple-400/10"
@@ -262,7 +300,7 @@ export function RealtimeCoachNew({
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 w-80">
+    <div className="fixed bottom-24 right-4 z-40 w-80">
       <div className="rounded-2xl border border-purple-400/30 bg-slate-900/95 backdrop-blur-md shadow-xl shadow-purple-400/10 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
@@ -301,12 +339,14 @@ export function RealtimeCoachNew({
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-3">
-          {/* Current Tip */}
+        <div className="p-3 space-y-2">
+          {/* Current Tip - Enhanced */}
           {currentTip ? (
-            <div className={`rounded-xl border p-3 ${getCategoryColor(currentTip.category)}`}>
+            <div className={`rounded-xl border p-3 ${getCategoryColor(currentTip.category)} shadow-lg`}>
               <div className="flex items-start gap-2">
-                {getCategoryIcon(currentTip.category)}
+                <div className="mt-0.5">
+                  {getCategoryIcon(currentTip.category)}
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium leading-relaxed">
                     {currentTip.suggestion}
@@ -321,37 +361,49 @@ export function RealtimeCoachNew({
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-center">
-              <Lightbulb className="h-6 w-6 mx-auto mb-2 text-white/30" />
-              <p className="text-sm text-white/50">
-                Start the conversation to get live coaching tips
+            <div className="rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-4 text-center">
+              <div className="h-10 w-10 rounded-full bg-purple-400/10 flex items-center justify-center mx-auto mb-2">
+                <Lightbulb className="h-5 w-5 text-purple-400" />
+              </div>
+              <p className="text-sm text-white/60 font-medium">
+                Waiting for conversation...
+              </p>
+              <p className="text-xs text-white/40 mt-1">
+                Tips appear as you talk with the prospect
               </p>
             </div>
           )}
 
-          {/* Previous Tips */}
+          {/* Previous Tips - Collapsible */}
           {tips.length > 1 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-[10px] text-white/40 uppercase tracking-wider">
-                <span>Previous Tips</span>
+            <div className="space-y-1">
+              <button 
+                onClick={() => setShowHistory(!showHistory)}
+                className="flex items-center gap-2 text-[10px] text-white/40 uppercase tracking-wider w-full hover:text-white/60 transition-colors"
+              >
+                <span>Previous Tips ({tips.length - 1})</span>
                 <span className="flex-1 h-px bg-white/10" />
-              </div>
-              <div className="space-y-1.5 max-h-32 overflow-y-auto scrollbar-thin">
-                {tips.slice(1).map((tip) => (
-                  <div 
-                    key={tip.id}
-                    className="flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-white/5"
-                  >
-                    {getCategoryIcon(tip.category)}
-                    <p className="text-xs text-white/70 line-clamp-2 flex-1">
-                      {tip.suggestion}
-                    </p>
-                    {tip.priority === 'high' && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
-                    )}
-                  </div>
-                ))}
-              </div>
+                <span className="text-xs">{showHistory ? '−' : '+'}</span>
+              </button>
+              {showHistory && (
+                <div className="space-y-1 max-h-28 overflow-y-auto scrollbar-thin pr-1">
+                  {tips.slice(1).map((tip, idx) => (
+                    <div 
+                      key={tip.id}
+                      className="flex items-start gap-2 p-2 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors"
+                    >
+                      <span className="text-[10px] text-white/30 font-mono mt-0.5">{idx + 1}</span>
+                      {getCategoryIcon(tip.category)}
+                      <p className="text-xs text-white/70 line-clamp-2 flex-1">
+                        {tip.suggestion}
+                      </p>
+                      {tip.priority === 'high' && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-red-400 shrink-0 mt-1" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

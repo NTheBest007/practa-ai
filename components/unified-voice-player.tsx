@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Volume2, VolumeX, Loader2, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
-import { generateSpeech, speakWithBrowserTTS, stopBrowserTTS } from '@/lib/ai-service-with-debug';
+import { Volume2, VolumeX, Loader2 } from 'lucide-react';
+import { generateSpeech } from '@/lib/ai-service-with-debug';
 import { useDebug } from '@/lib/debug-context';
 
 interface UnifiedVoicePlayerProps {
@@ -31,7 +30,6 @@ export function UnifiedVoicePlayer({
   const [isMuted, setIsMuted] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [activeProvider, setActiveProvider] = useState<string>('');
-  const [useBrowserTTS, setUseBrowserTTS] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasAttemptedRef = useRef(false);
   const debug = useDebug();
@@ -40,9 +38,7 @@ export function UnifiedVoicePlayer({
   useEffect(() => {
     hasAttemptedRef.current = false;
     setAudioUrl(null);
-    setUseBrowserTTS(false);
     setActiveProvider('');
-    stopBrowserTTS();
   }, [text]);
 
   // Auto-play
@@ -71,7 +67,6 @@ export function UnifiedVoicePlayer({
     const handleError = () => {
       setIsPlaying(false);
       console.error('Audio playback error');
-      toast.error('Audio playback failed');
     };
 
     audio.addEventListener('ended', handleEnded);
@@ -89,24 +84,13 @@ export function UnifiedVoicePlayer({
     if (!text.trim() || isLoading) return;
 
     // If we already have audio, just play it
-    if (audioUrl && !useBrowserTTS) {
+    if (audioUrl) {
       if (audioRef.current) {
         audioRef.current.volume = isMuted ? 0 : 1;
         audioRef.current.play().catch(err => {
           console.error('Play error:', err);
-          toast.error('Could not play audio');
         });
       }
-      return;
-    }
-
-    // If using browser TTS
-    if (useBrowserTTS) {
-      speakWithBrowserTTS(
-        text,
-        () => setIsPlaying(true),
-        () => setIsPlaying(false)
-      );
       return;
     }
 
@@ -136,40 +120,21 @@ export function UnifiedVoicePlayer({
             });
           }
         }, 100);
-      } else {
-        // Fall back to browser TTS
-        console.log('[Voice] Falling back to browser TTS');
-        setUseBrowserTTS(true);
-        debug.updateVoiceDebug(text.substring(0, 50) + '...', 'All TTS providers failed - using browser fallback', 'Browser');
-        speakWithBrowserTTS(
-          text,
-          () => setIsPlaying(true),
-          () => setIsPlaying(false)
-        );
       }
+      // Silently fail - no toast per message
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Speech failed';
       console.error('[Voice] Error:', error);
       onError?.(errorMsg);
       debug.updateVoiceDebug(text.substring(0, 50) + '...', errorMsg, null);
-      
-      // Fall back to browser TTS
-      setUseBrowserTTS(true);
-      debug.updateVoiceDebug(text.substring(0, 50) + '...', errorMsg, 'Browser');
-      speakWithBrowserTTS(
-        text,
-        () => setIsPlaying(true),
-        () => setIsPlaying(false)
-      );
+      // Silently fail - no toast per message
     } finally {
       setIsLoading(false);
     }
   };
 
   const pause = () => {
-    if (useBrowserTTS) {
-      stopBrowserTTS();
-    } else if (audioRef.current) {
+    if (audioRef.current) {
       audioRef.current.pause();
     }
     setIsPlaying(false);
@@ -195,14 +160,14 @@ export function UnifiedVoicePlayer({
   };
 
   const getProviderDisplay = () => {
-    if (useBrowserTTS) return 'Browser';
-    if (activeProvider) return activeProvider;
+    if (activeProvider && activeProvider !== 'none') return activeProvider;
     return '';
   };
 
+
   return (
     <div className="flex items-center gap-2">
-      {audioUrl && !useBrowserTTS && (
+      {audioUrl && (
         <audio
           ref={audioRef}
           src={audioUrl}
@@ -243,13 +208,8 @@ export function UnifiedVoicePlayer({
       )}
 
       {/* Provider badge */}
-      {(activeProvider || useBrowserTTS) && (
-        <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-          useBrowserTTS 
-            ? 'bg-amber-400/20 text-amber-300' 
-            : 'bg-emerald-400/20 text-emerald-300'
-        }`}>
-          {useBrowserTTS && <AlertCircle className="h-3 w-3 inline mr-1" />}
+      {activeProvider && activeProvider !== 'none' && (
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-400/20 text-emerald-300">
           {getProviderDisplay()}
         </span>
       )}

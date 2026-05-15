@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS user_subscriptions (
   current_period_start timestamptz,
   current_period_end timestamptz,
   created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
+  updated_at timestamptz DEFAULT now(),
+  CONSTRAINT user_subscriptions_user_id_key UNIQUE (user_id)
 );
 
 -- 2. Scenario Usage Table (Tracks calls per scenario per billing period)

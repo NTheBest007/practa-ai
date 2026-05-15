@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
-import Stripe from 'stripe';
-import { supabase } from '@/lib/supabase';
-
-// Use test key for development, live key for production
-const stripe = new Stripe(
-  process.env.STRIPE_SECRET_KEY_TEST || process.env.STRIPE_SECRET_KEY!
-);
+import { getServiceSupabaseClient } from '@/lib/supabase-service';
+import { getStripeServer } from '@/lib/stripe-server';
 
 export async function POST(req: Request) {
   try {
+    const stripe = getStripeServer();
+    const supabase = getServiceSupabaseClient();
     // Debug: Log environment variables (localhost only)
     console.log('=== STRIPE CHECKOUT DEBUG ===');
     console.log('STRIPE_SECRET_KEY_TEST exists:', !!process.env.STRIPE_SECRET_KEY_TEST);
@@ -76,9 +73,13 @@ export async function POST(req: Request) {
       );
     }
 
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
     console.log('Creating checkout session with price:', priceId);
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
+      client_reference_id: userId,
       line_items: [
         {
           price: priceId,
@@ -86,8 +87,8 @@ export async function POST(req: Request) {
         },
       ],
       mode: 'subscription',
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard?subscription=success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/pricing?canceled=true`,
+      success_url: `${baseUrl}/dashboard?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/pricing?canceled=true`,
       subscription_data: {
         metadata: {
           userId,
