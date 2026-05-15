@@ -36,16 +36,18 @@ export async function POST(req: Request) {
         }
 
         // Get subscription details from Stripe (userId is in subscription metadata)
-        const stripeSub: any = await stripe.subscriptions.retrieve(subscriptionId);
-        const userId = stripeSub.metadata?.userId;
+        const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
+        // Handle Stripe Response wrapper
+        const subData = (stripeSub as any).object || stripeSub;
+        const userId = subData.metadata?.userId;
 
         if (!userId) {
           console.error('Missing userId in subscription metadata');
           break;
         }
 
-        const periodStart = stripeUnixSecondsToIso(stripeSub.current_period_start);
-        const periodEnd = stripeUnixSecondsToIso(stripeSub.current_period_end);
+        const periodStart = stripeUnixSecondsToIso(subData.current_period_start);
+        const periodEnd = stripeUnixSecondsToIso(subData.current_period_end);
         const upsertRow: Record<string, unknown> = {
           user_id: userId,
           stripe_customer_id: customerId,
@@ -98,7 +100,9 @@ export async function POST(req: Request) {
         if (!subscriptionId) break;
 
         // Get subscription details
-        const stripeSub: any = await stripe.subscriptions.retrieve(subscriptionId);
+        const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
+        // Handle Stripe Response wrapper
+        const subData = (stripeSub as any).object || stripeSub;
 
         // Find user by Stripe customer ID
         const { data: userSub } = await supabase
@@ -108,7 +112,7 @@ export async function POST(req: Request) {
           .maybeSingle();
 
         if (userSub) {
-          const newEndIso = stripeUnixSecondsToIso(stripeSub.current_period_end);
+          const newEndIso = stripeUnixSecondsToIso(subData.current_period_end);
           const oldPeriodEnd = new Date(userSub.current_period_end || 0);
           const newPeriodEnd = newEndIso ? new Date(newEndIso) : null;
 
@@ -128,7 +132,7 @@ export async function POST(req: Request) {
             }
           }
 
-          const periodStart = stripeUnixSecondsToIso(stripeSub.current_period_start);
+          const periodStart = stripeUnixSecondsToIso(subData.current_period_start);
           const updateRow: Record<string, unknown> = {
             status: 'active',
             updated_at: new Date().toISOString(),
@@ -164,7 +168,7 @@ export async function POST(req: Request) {
       }
 
       case 'customer.subscription.updated': {
-        const updatedSub: any = event.data.object;
+        const updatedSub = event.data.object as any;
 
         const periodEnd = stripeUnixSecondsToIso(updatedSub.current_period_end);
         const updateSubRow: Record<string, unknown> = {
