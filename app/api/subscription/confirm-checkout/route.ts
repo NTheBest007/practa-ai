@@ -55,8 +55,10 @@ export async function POST(req: Request) {
 
     // Full retrieve — expanded subscription often lacks period_* timestamps
     const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
+    // Handle Stripe Response wrapper
+    const subData = (stripeSub as any).object || stripeSub;
 
-    const metaUserId = stripeSub.metadata?.userId;
+    const metaUserId = subData.metadata?.userId;
     const refUserId = session.client_reference_id;
     if (metaUserId !== userId && refUserId !== userId) {
       return NextResponse.json(
@@ -73,13 +75,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No customer on session' }, { status: 400 });
     }
 
-    const periodStart = stripeUnixSecondsToIso(stripeSub.current_period_start);
-    const periodEnd = stripeUnixSecondsToIso(stripeSub.current_period_end);
+    const periodStart = stripeUnixSecondsToIso(subData.current_period_start);
+    const periodEnd = stripeUnixSecondsToIso(subData.current_period_end);
 
     const row: Record<string, unknown> = {
       user_id: userId,
       stripe_customer_id: customerId,
-      stripe_subscription_id: stripeSub.id,
+      stripe_subscription_id: subData.id,
       plan_type: 'premium',
       status: 'active',
       updated_at: new Date().toISOString(),
