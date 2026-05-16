@@ -97,25 +97,30 @@ export default function ResultsPage() {
             </div>
           </div>
 
-          {/* Overall Score + Category Breakdown */}
+          {/* Overall Score */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <ScoreCard score={session.score} summary={(feedback?.summary as string) ?? ''} />
-            {categoryScores && <CategoryBreakdown scores={categoryScores} />}
             <FeedbackList
               title="Strengths"
               icon={<TrendingUp className="h-4 w-4 text-emerald-300" />}
               items={(feedback?.strengths as string[]) ?? []}
               accent="emerald"
             />
-          </div>
-
-          {/* Weaknesses + Missed Opportunities + Suggestions */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <FeedbackList
               title="Weaknesses"
               icon={<AlertTriangle className="h-4 w-4 text-amber-300" />}
               items={(feedback?.weaknesses as string[]) ?? []}
               accent="amber"
+            />
+          </div>
+
+          {/* Suggestions + Missed Opportunities + Category Breakdown */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <FeedbackList
+              title="Suggestions"
+              icon={<Lightbulb className="h-4 w-4 text-sky-300" />}
+              items={(feedback?.suggestions as string[]) ?? []}
+              accent="sky"
             />
             <FeedbackList
               title="Missed Opportunities"
@@ -123,12 +128,9 @@ export default function ResultsPage() {
               items={missedOpportunities}
               accent="rose"
             />
-            <FeedbackList
-              title="Suggestions"
-              icon={<Lightbulb className="h-4 w-4 text-sky-300" />}
-              items={(feedback?.suggestions as string[]) ?? []}
-              accent="sky"
-            />
+            {categoryScores && categoryScores.rapportBuilding !== undefined && (
+              <CategoryBreakdown scores={categoryScores} />
+            )}
           </div>
 
           {/* Transcript */}

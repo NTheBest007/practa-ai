@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { PhoneFrame } from '@/components/phone-frame';
 import { UnifiedVoiceRecorder } from '@/components/unified-voice-recorder';
 import { UnifiedVoicePlayer } from '@/components/unified-voice-player';
-import { RealtimeCoachNew } from '@/components/realtime-coach-new';
+import { SessionStartModal } from '@/components/session-start-modal';
 import { supabase, Scenario, Message } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { getAvatarCharacteristics } from '@/lib/voice-utils';
@@ -18,7 +18,7 @@ import Link from 'next/link';
 export default function PracticePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { user, subscription } = useAuth();
+  const { user, subscription, refreshSubscription } = useAuth();
   const isPro = subscription?.plan === 'pro';
 
   const [scenario, setScenario] = useState<Scenario | null>(null);
@@ -31,6 +31,8 @@ export default function PracticePage() {
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [showStartModal, setShowStartModal] = useState(true);
+  const [sessionStarted, setSessionStarted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const hasShownVoiceToastRef = useRef(false);
@@ -60,9 +62,9 @@ export default function PracticePage() {
     })();
   }, [user, id, router]);
 
-  // Call timer
+  // Call timer - only starts when session begins
   useEffect(() => {
-    if (!loading && scenario) {
+    if (!loading && scenario && sessionStarted) {
       timerRef.current = setInterval(() => {
         setCallDuration(prev => prev + 1);
       }, 1000);
@@ -70,7 +72,7 @@ export default function PracticePage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [loading, scenario]);
+  }, [loading, scenario, sessionStarted]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -100,6 +102,7 @@ export default function PracticePage() {
           history: [...messages, userMsg as Message].filter(Boolean).map((m) => ({ role: m.role, content: m.content })),
           userMessage: text,
           scenarioId: scenario.id,
+          sessionId: id,
         }),
       });
       
@@ -176,10 +179,9 @@ export default function PracticePage() {
           // VoicePlayer will handle auto-play when mounted with autoPlay prop
         }, 500);
         
-        // If avatar hung up, end session automatically
+        // If avatar hung up, show end call UI
         if (isHungUp) {
-          toast.warning('The prospect hung up. Ending session...');
-          setTimeout(() => endSession(), 2000);
+          toast.warning('The prospect hung up. Click the red button to end the call and see your results.');
         }
       }
     } catch (e) {
@@ -291,7 +293,35 @@ export default function PracticePage() {
           <Loader2 className="h-6 w-6 animate-spin text-emerald-400" />
         </div>
       ) : (
-        <div className="flex flex-col gap-4 max-w-2xl mx-auto">
+        <>
+          <SessionStartModal
+            isOpen={showStartModal}
+            onClose={() => router.push('/scenarios')}
+            onStart={async () => {
+              // Track usage only when user actually starts the session
+              if (user && scenario) {
+                try {
+                  await fetch('/api/subscription/track-usage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      userId: user.id,
+                      scenarioId: scenario.id,
+                    }),
+                  });
+                  await refreshSubscription();
+                } catch (error) {
+                  console.error('Failed to track usage:', error);
+                }
+              }
+              setShowStartModal(false);
+              setSessionStarted(true);
+            }}
+            scenarioName={scenario.name}
+            scenarioDescription={scenario.description}
+            scenarioContent={scenario.google_doc_content}
+          />
+          <div className="flex flex-col gap-4 max-w-2xl mx-auto">
           {/* Header Row */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -405,16 +435,8 @@ export default function PracticePage() {
             </div>
           </div>
         </div>
+        </>
       )}
-      
-      {/* Real-Time Coach */}
-      <RealtimeCoachNew
-        messages={messages}
-        scenario={scenario}
-        isMinimized={isMinimized}
-        onToggleMinimize={() => setIsMinimized(!isMinimized)}
-        isPro={isPro}
-      />
     </AppShell>
   );
 }

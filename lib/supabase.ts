@@ -14,9 +14,15 @@ export type Scenario = {
   id: string;
   name: string;
   description: string;
+  long_description?: string;
   google_doc_content: string;
   avatar_url: string;
   created_at: string;
+  objections?: string[];
+  personality_traits?: string[];
+  goals?: string[];
+  difficulty?: 'easy' | 'medium' | 'hard';
+  estimated_time?: string;
 };
 
 export type Session = {

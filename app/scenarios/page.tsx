@@ -47,23 +47,6 @@ export default function ScenariosPage() {
     
     setStarting(scenarioId);
     
-    // Track usage
-    try {
-      await fetch('/api/subscription/track-usage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          scenarioId: scenarioId,
-        }),
-      });
-      // useRevenueCat.track('scenario_started', { scenarioId });
-      // Refresh subscription to update the counter
-      await refreshSubscription();
-    } catch (error) {
-      console.error('Failed to track usage:', error);
-    }
-    
     try {
       const { data: session } = await supabase
         .from('sessions')
