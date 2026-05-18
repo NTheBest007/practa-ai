@@ -24,8 +24,8 @@ interface SessionStartModalProps {
   scenarioContent?: string;
 }
 
-function extractScenarioDetails(content: string): { role: string; background: string; personality: string; situation: string; objections: string[] } {
-  if (!content) return { role: '', background: '', personality: '', situation: '', objections: [] };
+function extractScenarioDetails(content: string): { role: string; background: string; personality: string; situation: string; objections: string[]; offer: string } {
+  if (!content) return { role: '', background: '', personality: '', situation: '', objections: [], offer: '' };
   
   // Extract Role - get full line
   const roleMatch = content.match(/Role[:\s]+(.+?)(?=\n|$)/i);
@@ -81,13 +81,20 @@ function extractScenarioDetails(content: string): { role: string; background: st
       .slice(0, 3);
   }
   
+  // Extract Offer / Why We're Calling / Product
+  const offerMatch = content.match(/(?:Offer|Our Offer|Product|Why We(?:'re| Are) Calling|Value Proposition|What We(?:'re| Are) Selling|Pitch)[:\s]+([\'\s\S]+?)(?=\n\s*(?:Name|Role|Situation|Objections|Goals|Personality|Background|Tone|Company|Victory|Win)[:\s]|\n\n[A-Z]|$)/i);
+  let offer = '';
+  if (offerMatch) {
+    offer = offerMatch[1].trim().replace(/\n+/g, ' ');
+  }
+
   // Combine all background info
   let fullBackground = background;
   if (situation && !fullBackground.includes(situation.substring(0, 40))) {
     fullBackground += (fullBackground ? ' ' : '') + situation;
   }
   
-  return { role: role || name, background: fullBackground, personality, situation, objections };
+  return { role: role || name, background: fullBackground, personality, situation, objections, offer };
 }
 
 export function SessionStartModal({ 
@@ -230,29 +237,24 @@ export function SessionStartModal({
                       </div>
 
                       {/* Personality */}
-                      {details.personality && (
-                        <div className="p-4 rounded-lg bg-white/[0.03] border border-white/10">
-                          <h4 className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2">Personality</h4>
-                          <p className="text-sm text-white/80 leading-relaxed">
-                            {details.personality.split('.').slice(0, 4).join('.') + '.'}
-                          </p>
-                        </div>
-                      )}
+                      <div className="p-4 rounded-lg bg-white/[0.03] border border-white/10">
+                        <h4 className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2">Personality</h4>
+                        <p className="text-sm text-white/80 leading-relaxed">
+                          {details.personality
+                            ? details.personality.split('.').slice(0, 4).join('.') + '.'
+                            : 'No personality details available for this scenario.'}
+                        </p>
+                      </div>
 
-                      {/* Objections */}
-                      {details.objections.length > 0 && (
-                        <div className="p-4 rounded-lg bg-white/[0.03] border border-white/10">
-                          <h4 className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2">Likely Objections</h4>
-                          <ul className="space-y-1">
-                            {details.objections.slice(0, 3).map((obj, i) => (
-                              <li key={i} className="text-sm text-white/70 flex items-start gap-2">
-                                <span className="text-amber-400/60">•</span>
-                                <span>{obj.split('.')[0] + (obj.split('.')[1] ? '.' : '')}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
+                      {/* Our Offer */}
+                      <div className="p-4 rounded-lg bg-white/[0.03] border border-white/10">
+                        <h4 className="text-xs font-semibold text-teal-400 uppercase tracking-wider mb-2">Our Offer</h4>
+                        <p className="text-sm text-white/80 leading-relaxed">
+                          {details.offer
+                            ? details.offer.split('.').slice(0, 3).join('.') + '.'
+                            : scenarioDescription || 'Review the scenario details for the full offer context.'}
+                        </p>
+                      </div>
                     </div>
                   </motion.div>
                 </div>

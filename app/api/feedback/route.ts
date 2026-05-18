@@ -284,22 +284,31 @@ function calculateCategoryScores(
   };
   
   // Listening Ratio Score
+  // ratio = userWords / assistantWords (salesperson / prospect)
+  // target: salesperson talks < 0.43 (30% of words), prospect talks > 70%
   const userWordCount = allUserText.split(/\s+/).length;
   const assistantWordCount = allAssistantText.split(/\s+/).length;
-  const ratio = assistantWordCount / (userWordCount || 1);
+  const salespersonRatio = userWordCount / (assistantWordCount || 1);
   
   let listeningScore = 10;
-  let listeningExplanation = 'Good balance';
+  let listeningExplanation = 'Reasonable balance - aim for prospect to talk 70% of the time';
   
-  if (ratio < 0.8) {
-    listeningScore = 5;
-    listeningExplanation = 'You talked significantly more than the prospect (70/30 rule violated)';
-  } else if (ratio > 1.5) {
-    listeningScore = 15;
-    listeningExplanation = 'Excellent listening ratio - prospect dominated the conversation';
-  } else if (ratio > 2) {
+  if (salespersonRatio > 1.5) {
+    // Salesperson talked significantly more than prospect
+    listeningScore = 3;
+    listeningExplanation = 'You dominated the conversation - prospect should talk more (70/30 rule violated)';
+  } else if (salespersonRatio > 1.0) {
+    // Salesperson talked more than prospect
+    listeningScore = 6;
+    listeningExplanation = 'You talked more than the prospect - work on asking more questions';
+  } else if (salespersonRatio < 0.43) {
+    // Salesperson talked < 30% — excellent
     listeningScore = 20;
     listeningExplanation = 'Outstanding - you let the prospect do most of the talking';
+  } else if (salespersonRatio < 0.6) {
+    // Salesperson talked < 40%
+    listeningScore = 15;
+    listeningExplanation = 'Excellent listening ratio - prospect dominated the conversation';
   }
   
   const listeningRatioScore: CategoryScore = {
@@ -308,7 +317,7 @@ function calculateCategoryScores(
     explanation: listeningExplanation,
     specificExamples: [
       `You: ~${userWordCount} words | Prospect: ~${assistantWordCount} words`,
-      `Talk ratio: ${ratio.toFixed(1)}:1 (target: 0.3:1 you talking less)`
+      `You spoke ${Math.round(salespersonRatio * 100)}% of words (target: <30%)`
     ]
   };
   
@@ -325,17 +334,31 @@ function calculateCategoryScores(
       /\b(i understand|that makes sense|you're right|totally|completely understand)\b/.test(nextMsg.content.toLowerCase());
   }).length;
   
+  // Only claim strength if objections actually occurred and were handled.
+  // If no objections at all, score is neutral (10/20) — not a strength, not a weakness.
+  let objectionScoreValue: number;
+  let objectionExplanation: string;
+  if (objectionsRaised === 0) {
+    objectionScoreValue = 10; // neutral — no data to evaluate
+    objectionExplanation = 'No objections raised - not enough data to evaluate objection handling';
+  } else if (objectionsHandled === objectionsRaised) {
+    objectionScoreValue = 20;
+    objectionExplanation = 'Perfect objection handling - acknowledged every concern before responding';
+  } else if (objectionsHandled > 0) {
+    objectionScoreValue = Math.round((objectionsHandled / objectionsRaised) * 20);
+    objectionExplanation = `Handled ${objectionsHandled}/${objectionsRaised} objections with agreement-first approach`;
+  } else {
+    objectionScoreValue = 0;
+    objectionExplanation = `${objectionsRaised} objection(s) raised but none acknowledged first - missed agreement step`;
+  }
+  
   const objectionScore: CategoryScore = {
-    score: objectionsRaised > 0 ? Math.round((objectionsHandled / objectionsRaised) * 20) : 15,
+    score: objectionScoreValue,
     maxScore: 20,
-    explanation: objectionsRaised === 0
-      ? 'No objections raised - either smooth sailing or not engaging deeply enough'
-      : objectionsHandled === objectionsRaised
-      ? 'Perfect objection handling - acknowledged every concern'
-      : `Handled ${objectionsHandled}/${objectionsRaised} objections with agreement-first approach`,
+    explanation: objectionExplanation,
     specificExamples: objectionsRaised > 0 
       ? [`${objectionsHandled} of ${objectionsRaised} objections properly acknowledged`]
-      : ['No objections encountered']
+      : ['No objections encountered - cannot evaluate this skill']
   };
   
   // Value Communication Score
@@ -377,11 +400,21 @@ function calculateCategoryScores(
   
   const confidentCount = confidentPatterns.filter(p => p.test(allUserText)).length;
   const needyCount = needyPatterns.filter(p => p.test(allUserText)).length;
-  
+
+  // Profanity/slur detection — automatically disqualifies confidence as a strength
+  const profanityPatterns = [
+    /\b(fuck|shit|asshole|bitch|bastard|cunt|dick|prick|twat|wanker|bullshit)\b/i,
+    /\b(pussy|nigger|nigga|faggot|retard|spastic|chink|kike|wetback|cracker)\b/i
+  ];
+  const hasProfanity = profanityPatterns.some(p => p.test(allUserText));
+
   let confidenceScore = 10;
   let confidenceExplanation = 'Neutral confidence level';
-  
-  if (needyCount >= 2) {
+
+  if (hasProfanity) {
+    confidenceScore = 0;
+    confidenceExplanation = 'Unprofessional language used - this disqualifies any confidence positioning';
+  } else if (needyCount >= 2) {
     confidenceScore = 5;
     confidenceExplanation = 'Signs of neediness detected - avoid phrases like "just" or "hopefully"';
   } else if (confidentCount >= 2) {
@@ -769,25 +802,46 @@ function generateLegacyFeedback(
     categoryPercentages[name] = Math.round((data.score / data.maxScore) * 100);
   }
 
+  // Determine which categories have issues (weaknesses) — they cannot also be strengths
+  const issueCategoryNames = new Set(
+    detailedIssues.map(i => {
+      // Normalize issue category names to match categoryScores keys
+      const map: Record<string, string> = {
+        'Objection Handling': 'objectionHandling',
+        'Discovery': 'discovery',
+        'Closing': 'closing',
+        'Value Communication': 'valueCommunication',
+        'Listening': 'listening',
+        'Rapport': 'rapport'
+      };
+      return map[i.category] || i.category;
+    })
+  );
+
   // Generate personalized strengths based on what they actually did well
+  // Exclude any category that also has detailed issues (would create contradictions)
   const topCategories = Object.entries(categoryPercentages)
-    .filter(([_, pct]) => pct >= 50)
+    .filter(([name, pct]) => pct >= 60 && !issueCategoryNames.has(name))
     .sort((a, b) => b[1] - a[1])
     .slice(0, 4);
   
-  // Calculate actual ratio for display
-  const ratioNum = parseFloat(String(metrics.talkToListenRatio)) || 0.5;
-  const prospectMultiplier = Math.round(1 / ratioNum);
+  // Calculate actual ratio for display — metrics.talkToListenRatio = userWords/assistantWords
+  const ratioNum = parseFloat(String(metrics.talkToListenRatio)) || 1.0;
+  // prospectMultiplier: how many times more the prospect talked vs the salesperson
+  const prospectMultiplier = ratioNum > 0 ? Math.round(1 / ratioNum) : 1;
   
   for (const [name, pct] of topCategories) {
     // Create specific, personalized strength messages with personality
-    if (name === 'listening' && pct >= 50) {
-      if (ratioNum <= 0.5) {
+    if (name === 'listening' && pct >= 60) {
+      if (ratioNum <= 0.43) {
+        // salesperson < 30% of words — excellent
         strengths.push(`Great listening - you let the prospect do ${prospectMultiplier}x more talking than you. That's the secret to understanding their real needs.`);
       } else {
-        strengths.push(`You made space for the prospect to share - they talked ${prospectMultiplier}x more than you, which is the right direction.`);
+        strengths.push(`You made space for the prospect to share - they talked more than you, which is the right direction.`);
       }
-    } else if (name === 'objectionHandling' && pct >= 50) {
+    } else if (name === 'objectionHandling' && pct >= 60) {
+      // Only emit this strength if objections actually occurred (score > neutral 50%)
+      // pct >= 60 with neutral score (10/20=50%) won't reach here due to >= 60 threshold
       strengths.push(`You handled pushback like a pro. When the prospect objected, you didn't argue - you acknowledged first. That's how you turn resistance into trust.`);
     } else if (name === 'discovery' && pct >= 50) {
       const dq = Number(metrics.discoveryQuestions) || 0;
@@ -899,9 +953,12 @@ function generateLegacyFeedback(
   }
   
   if (!issueCategories.has('Listening')) {
-    if (ratio < 0.5 && !strengths.some(s => s.includes('Listening'))) {
+    // metrics.talkToListenRatio = userWords/assistantWords (salesperson/prospect)
+    // ratio < 0.43 means salesperson spoke < 30% — excellent
+    // ratio > 1.0 means salesperson spoke more than prospect — bad
+    if (ratio < 0.43 && !strengths.some(s => s.toLowerCase().includes('listen'))) {
       strengths.push('Letting the prospect lead the conversation - excellent listening ratio');
-    } else if (ratio > 1 && !weaknesses.some(w => w.includes('Listening'))) {
+    } else if (ratio > 1.0 && !weaknesses.some(w => w.includes('Listening'))) {
       weaknesses.push('Listening: You dominated the conversation - prospect should talk more');
       suggestions.push('Ask a question, then count to 3 before speaking. Let them finish their thoughts.');
     }
