@@ -319,7 +319,7 @@ export default function Home() {
           <div className="text-sm text-white/40">© {new Date().getFullYear()} Practa AI. Train like a pro.</div>
           <div className="flex gap-6 text-sm text-white/50">
             <Link href="/privacy" className="hover:text-white">Privacy</Link>
-            <a href="#" className="hover:text-white">Terms</a>
+            <Link href="/terms" className="hover:text-white">Terms</Link>
             <a href="mailto:ntadic1804@icloud.com" className="hover:text-white">Contact</a>
           </div>
         </div>
