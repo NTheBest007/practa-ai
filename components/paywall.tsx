@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Check, Loader2, Sparkles, X, Crown, Zap, Shield, Star } from 'lucide-react';
-import { useRevenueCat } from '@/hooks/use-revenuecat';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
 
@@ -14,21 +13,10 @@ interface PaywallProps {
 }
 
 export default function Paywall({ isOpen, onClose }: PaywallProps) {
-  const { status, offerings, purchase, isInitialized } = useRevenueCat();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const handlePurchase = async () => {
-    if (!offerings?.current) {
-      toast.error('No subscription plans available. Please try again later.');
-      return;
-    }
-
-    if (!monthlyPackage) {
-      toast.error('Monthly plan not available. Please try again later.');
-      return;
-    }
-
     setLoading(true);
     try {
       // Direct Stripe checkout for localhost debugging
@@ -76,11 +64,6 @@ export default function Paywall({ isOpen, onClose }: PaywallProps) {
     setLoading(false);
   };
 
-  // Find the first available package (fallback if no monthly found)
-  const monthlyPackage = offerings?.current?.availablePackages?.find(
-    (pkg: any) => pkg.packageType === 'MONTHLY'
-  ) || offerings?.current?.availablePackages?.[0]; // Fallback to first package
-
   if (!isOpen) return null;
 
   return (
@@ -111,7 +94,7 @@ export default function Paywall({ isOpen, onClose }: PaywallProps) {
           <div className="mb-8">
             <div className="mb-2">
               <span className="text-5xl font-bold text-white">
-                {monthlyPackage?.webBillingProduct?.price?.formattedPrice || '$19.99'}
+                $19.99
               </span>
               <span className="text-white/50 text-xl">/month</span>
             </div>
@@ -191,7 +174,7 @@ export default function Paywall({ isOpen, onClose }: PaywallProps) {
           {/* CTA Button */}
           <Button
             onClick={handlePurchase}
-            disabled={loading || !isInitialized}
+            disabled={loading}
             className="btn-glow w-full py-4 text-lg font-semibold"
             size="lg"
           >

@@ -4,7 +4,7 @@ import { getServiceSupabaseClient } from '@/lib/supabase-service';
 import { getStripeServer } from '@/lib/stripe-server';
 import { stripeUnixSecondsToIso } from '@/lib/stripe-period';
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET_LIVE!;
 
 export async function POST(req: Request) {
   try {

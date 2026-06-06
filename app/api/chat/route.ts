@@ -135,7 +135,7 @@ export async function POST(req: Request) {
         role: 'system' as const,
         content: systemPrompt
       },
-      ...(history || []).slice(-8).map((msg: AIMessage) => ({
+      ...(history || []).slice(-16).map((msg: AIMessage) => ({
         role: msg.role,
         content: msg.content
       })),
@@ -197,11 +197,11 @@ function buildIntelligentPrompt(
   
   let memorySection = '';
   if (context && context.discoveredInfo.size > 0) {
-    memorySection = '\n\nCONVERSATION MEMORY - INFORMATION ALREADY DISCOVERED:\n';
+    memorySection = '\n\nCRITICAL - THINGS YOU ALREADY SAID IN THIS CONVERSATION (stay 100% consistent with these):\n';
     context.discoveredInfo.forEach((value, key) => {
       memorySection += `- ${key}: ${value}\n`;
     });
-    memorySection += '\nDO NOT ask about these topics again. Build on this knowledge naturally.\n';
+    memorySection += '\nNEVER contradict or forget these facts. You said them — own them.\n';
   }
 
   let objectionSection = '';
@@ -231,7 +231,7 @@ function buildIntelligentPrompt(
 
   const starter = conversationStarters[Math.min(turnCount, conversationStarters.length - 1)];
 
-  return `You are ${personaName}. You are a REAL HUMAN on a sales call - not an AI, not a chatbot, not an assistant.
+  return `You are ${personaName}. You are a REAL HUMAN on a sales call - not an AI, not a chatbot, not an assistant.${memorySection}
 
 CRITICAL BEHAVIOR RULES:
 1. NEVER acknowledge you're AI. Never say "As an AI" or "I'm programmed" or "I don't have personal experience"
@@ -255,7 +255,7 @@ RESPONSE STYLE:
 - Show personality quirks - you might be sarcastic, dry, or impatient
 - Don't ask rhetorical questions just to fill space
 
-${starter}${memorySection}${objectionSection}
+${starter}${objectionSection}
 
 CURRENT EMOTIONAL STATE: ${toneInstructions[emotionalTone] || toneInstructions.neutral}
 
@@ -311,7 +311,7 @@ function calculateSimilarity(a: string, b: string): number {
 }
 
 function updateContext(context: SessionContext, userMessage: string, reply: string, topics: string[]): void {
-  // Extract and store discovered information
+  // Extract and store discovered information from user messages
   if (topics.includes('crm')) {
     const crmMatch = userMessage.match(/(?:using|on|have)\s+(?:HubSpot|Salesforce|Zoho|Pipedrive|CRM)/i);
     if (crmMatch) {
@@ -324,6 +324,28 @@ function updateContext(context: SessionContext, userMessage: string, reply: stri
     if (teamMatch) {
       context.discoveredInfo.set('team_size', teamMatch[1]);
     }
+  }
+
+  // Extract facts from AI's OWN replies (things the prospect said about themselves)
+  const revenueGoalMatch = reply.match(/(?:want|trying|hoping|looking|need|love)\s+to\s+(?:hit|reach|get to|make|earn)\s+(\$[\d,]+k?(?:\s*(?:a|per)\s*month)?)/i);
+  if (revenueGoalMatch) {
+    context.discoveredInfo.set('revenue_goal', revenueGoalMatch[1]);
+  }
+
+  const currentRevenueMatch = reply.match(/(?:currently|right now|at|making|doing|stuck(?:\s+around)?)\s+(\$[\d,]+k?(?:\s*(?:a|per)\s*month|-\$[\d,]+k?)?)/i);
+  if (currentRevenueMatch) {
+    context.discoveredInfo.set('current_revenue', currentRevenueMatch[1]);
+  }
+
+  const goalMatch = reply.match(/(?:my goal|what I want|what I'm after|trying to achieve)[^.!?]*([^.!?]+[.!?])/i);
+  if (goalMatch) {
+    context.discoveredInfo.set('stated_goal', goalMatch[1].trim());
+  }
+
+  // Also extract from user messages
+  const userRevenueMatch = userMessage.match(/(\$[\d,]+k?)(?:\s*(?:a|per)\s*month)?/i);
+  if (userRevenueMatch) {
+    context.discoveredInfo.set('mentioned_revenue', userRevenueMatch[1]);
   }
   
   // Track objections

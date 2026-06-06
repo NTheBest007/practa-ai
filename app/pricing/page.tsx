@@ -6,13 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/auth-context';
 import { Check, Loader2, Sparkles } from 'lucide-react';
-import { useRevenueCat } from '@/hooks/use-revenuecat';
 import { toast } from 'sonner';
 import Paywall from '@/components/paywall';
 
 export default function PricingPage() {
   const { user, subscription, subscriptionLoading } = useAuth();
-  const { status, offerings, purchase } = useRevenueCat();
   const [loading, setLoading] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
 
@@ -31,11 +29,16 @@ export default function PricingPage() {
 
     setLoading(true);
     try {
-      // Use RevenueCat's management URL for subscription management
-      if (status.managementURL) {
-        window.location.href = status.managementURL;
+      const res = await fetch('/api/stripe/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
       } else {
-        toast.error('No management portal available');
+        toast.error(data.error || 'Could not open management portal');
       }
     } catch (error) {
       toast.error('Something went wrong');

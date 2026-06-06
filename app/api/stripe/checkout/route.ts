@@ -6,21 +6,7 @@ export async function POST(req: Request) {
   try {
     const stripe = getStripeServer();
     const supabase = getServiceSupabaseClient();
-    // Debug: Log environment variables (localhost only)
-    console.log('=== STRIPE CHECKOUT DEBUG ===');
-    console.log('STRIPE_SECRET_KEY_TEST exists:', !!process.env.STRIPE_SECRET_KEY_TEST);
-    console.log('STRIPE_SECRET_KEY_TEST prefix:', process.env.STRIPE_SECRET_KEY_TEST?.substring(0, 7));
-    console.log('STRIPE_SECRET_KEY exists:', !!process.env.STRIPE_SECRET_KEY);
-    console.log('STRIPE_SECRET_KEY prefix:', process.env.STRIPE_SECRET_KEY?.substring(0, 7));
-    console.log('Using key:', process.env.STRIPE_SECRET_KEY_TEST ? 'TEST' : 'LIVE');
-    console.log('NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID:', process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID);
-    console.log('NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID_TEST:', process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID_TEST);
-    console.log('NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL);
-    console.log('===========================');
-
     const { userId, email, userName } = await req.json();
-
-    console.log('Stripe checkout request:', { userId, email, userName });
 
     if (!userId || !email) {
       console.error('Missing userId or email');
@@ -37,13 +23,10 @@ export async function POST(req: Request) {
       .eq('user_id', userId)
       .maybeSingle();
 
-    console.log('Existing subscription:', subscription);
-
     let customerId = subscription?.stripe_customer_id;
 
     // Create Stripe customer if doesn't exist
     if (!customerId) {
-      console.log('Creating new Stripe customer');
       const customer = await stripe.customers.create({
         email,
         name: userName || email,
@@ -52,7 +35,6 @@ export async function POST(req: Request) {
         },
       });
       customerId = customer.id;
-      console.log('Created customer:', customerId);
 
       // Update subscription record with customer ID
       await supabase
@@ -61,9 +43,7 @@ export async function POST(req: Request) {
         .eq('user_id', userId);
     }
 
-    // Create checkout session - use test price ID if available
-    const priceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID_TEST || process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID;
-    console.log('Price ID from env:', priceId);
+    const priceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID;
     
     if (!priceId) {
       console.error('Premium price ID not configured');
@@ -76,7 +56,6 @@ export async function POST(req: Request) {
     const baseUrl =
       process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-    console.log('Creating checkout session with price:', priceId);
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       client_reference_id: userId,
@@ -96,7 +75,6 @@ export async function POST(req: Request) {
       },
     });
 
-    console.log('Checkout session created:', session.url);
     return NextResponse.json({ url: session.url });
   } catch (error: any) {
     console.error('=== STRIPE CHECKOUT ERROR ===');

@@ -34,6 +34,7 @@ export default function PracticePage() {
   const [showStartModal, setShowStartModal] = useState(true);
   const [sessionStarted, setSessionStarted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const hasShownVoiceToastRef = useRef(false);
 
@@ -82,6 +83,7 @@ export default function PracticePage() {
     if (!input.trim() || !scenario) return;
     const text = input.trim();
     setInput('');
+    if (textareaRef.current) textareaRef.current.style.height = '44px';
     setSending(true);
 
     const { data: userMsg } = await supabase
@@ -413,17 +415,26 @@ export default function PracticePage() {
                 }}
               />
               <textarea
+                ref={textareaRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  const el = textareaRef.current;
+                  if (el) {
+                    el.style.height = 'auto';
+                    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+                  }
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     onSend();
+                    if (textareaRef.current) textareaRef.current.style.height = '44px';
                   }
                 }}
                 rows={1}
                 placeholder="Type what you'd say on the call..."
-                className="scroll-hide min-h-[44px] max-h-40 flex-1 resize-none rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-[15px] text-white placeholder:text-white/30 focus:border-emerald-400/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
+                className="scroll-hide min-h-[44px] max-h-40 flex-1 resize-none rounded-xl border border-white/10 bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/30 focus:border-emerald-400/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
               />
               <Button
                 onClick={onSend}

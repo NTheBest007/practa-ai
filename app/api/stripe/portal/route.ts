@@ -23,11 +23,14 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (!subscription?.stripe_customer_id) {
+      console.error('[stripe/portal] No stripe_customer_id for userId:', userId);
       return NextResponse.json(
-        { error: 'No Stripe customer found' },
+        { error: 'No Stripe customer found — complete a purchase first' },
         { status: 404 }
       );
     }
+
+    console.log('[stripe/portal] Creating portal for customer:', subscription.stripe_customer_id);
 
     // Create customer portal session
     const session = await stripe.billingPortal.sessions.create({
@@ -36,10 +39,10 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (error) {
-    console.error('Stripe portal error:', error);
+  } catch (error: any) {
+    console.error('[stripe/portal] Error:', error?.message, error?.type, error?.code);
     return NextResponse.json(
-      { error: 'Failed to create portal session' },
+      { error: error?.message || 'Failed to create portal session' },
       { status: 500 }
     );
   }

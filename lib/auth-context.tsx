@@ -11,8 +11,6 @@ import {
 } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import { initializeRevenueCat, changeUser } from './revenuecat';
-import { Purchases } from '@revenuecat/purchases-js';
 
 type SubscriptionData = {
   plan: 'free' | 'pro';
@@ -73,8 +71,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = data.session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
-        // Initialize RevenueCat with user ID
-        initializeRevenueCat(currentUser.id);
         fetchSubscription(currentUser.id);
       }
       setLoading(false);
@@ -84,12 +80,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
-        // Initialize or update RevenueCat with new user ID
-        initializeRevenueCat(currentUser.id);
-        // Also explicitly change user in RevenueCat if already configured
-        if (Purchases.isConfigured()) {
-          await changeUser(currentUser.id);
-        }
         fetchSubscription(currentUser.id);
       } else {
         setSubscription(null);
