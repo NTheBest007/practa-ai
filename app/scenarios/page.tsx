@@ -6,9 +6,7 @@ import { AppShell } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { supabase, Scenario } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
-import { useRevenueCat } from '@/hooks/use-revenuecat';
-import { generateScenarioEmbeddings, checkScenarioEmbeddings } from '@/lib/embeddings';
-import { ArrowRight, Loader as Loader2, Brain, Lock } from 'lucide-react';
+import { ArrowRight, Loader as Loader2, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ScenariosPage() {
@@ -17,8 +15,6 @@ export default function ScenariosPage() {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState<string | null>(null);
-  const [generatingEmbeddings, setGeneratingEmbeddings] = useState<string | null>(null);
-  const [embeddingStatus, setEmbeddingStatus] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     (async () => {
@@ -27,17 +23,6 @@ export default function ScenariosPage() {
         .select('*')
         .order('created_at', { ascending: true });
       setScenarios(data ?? []);
-      
-      // Check embedding status for all scenarios
-      if (data) {
-        const status: Record<string, boolean> = {};
-        for (const scenario of data) {
-          const hasEmbeddings = await checkScenarioEmbeddings(scenario.id);
-          status[scenario.id] = hasEmbeddings;
-        }
-        setEmbeddingStatus(status);
-      }
-      
       setLoading(false);
     })();
   }, []);
@@ -69,21 +54,6 @@ export default function ScenariosPage() {
     };
   };
 
-  async function generateEmbeddingsForScenario(scenarioId: string, googleDocContent: string) {
-    setGeneratingEmbeddings(scenarioId);
-    try {
-      await generateScenarioEmbeddings(scenarioId, googleDocContent);
-      toast.success('Embeddings generated successfully!');
-      // Update embedding status for this scenario
-      setEmbeddingStatus(prev => ({ ...prev, [scenarioId]: true }));
-    } catch (error) {
-      console.error('Error generating embeddings:', error);
-      toast.error('Failed to generate embeddings.');
-    } finally {
-      setGeneratingEmbeddings(null);
-    }
-  }
-
   return (
     <AppShell>
       <div>
@@ -103,7 +73,6 @@ export default function ScenariosPage() {
       ) : (
         <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {scenarios.map((s) => {
-            const hasEmbeddings = embeddingStatus[s.id];
             const usage = getUsageForScenario(s.id);
             const isAtLimit = usage.used >= usage.limit;
 
@@ -112,7 +81,7 @@ export default function ScenariosPage() {
                 key={s.id}
                 className="group glass glow-border overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-1"
               >
-                <div className="relative h-56 overflow-hidden">
+                <div className="relative aspect-square overflow-hidden">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={s.avatar_url}
@@ -125,12 +94,6 @@ export default function ScenariosPage() {
                       <div className="rounded-full bg-emerald-400/15 px-2.5 py-1 text-[11px] font-medium text-emerald-200 ring-1 ring-emerald-400/25 w-fit backdrop-blur">
                         Live Roleplay
                       </div>
-                      {hasEmbeddings === true && (
-                        <div className="rounded-full bg-blue-400/15 px-2.5 py-1 text-[11px] font-medium text-blue-200 ring-1 ring-blue-400/25 w-fit backdrop-blur flex items-center gap-1">
-                          <Brain className="h-3 w-3" />
-                          AI Enhanced
-                        </div>
-                      )}
                       {!subscriptionLoading && (
                         <div className={`rounded-full px-2.5 py-1 text-[11px] font-medium w-fit backdrop-blur flex items-center gap-1 ${
                           isAtLimit 
@@ -147,34 +110,7 @@ export default function ScenariosPage() {
                   <h3 className="text-lg font-semibold">{s.name}</h3>
                   <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-white/60">{s.description}</p>
                   
-                  {hasEmbeddings === false && (
-                    <div className="mt-4 p-3 rounded-lg bg-blue-400/10 border border-blue-400/20">
-                      <div className="flex items-center gap-2 text-blue-300 text-sm">
-                        <Brain className="h-4 w-4" />
-                        <span>Generate AI embeddings for enhanced responses</span>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-6 space-y-2">
-                    {hasEmbeddings === false && (
-                      <Button
-                        disabled={generatingEmbeddings === s.id}
-                        onClick={() => generateEmbeddingsForScenario(s.id, s.google_doc_content || '')}
-                        variant="outline"
-                        className="h-9 w-full rounded-lg border-blue-400/30 bg-blue-400/10 text-blue-200 hover:bg-blue-400/20 hover:text-blue-100"
-                      >
-                        {generatingEmbeddings === s.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Brain className="mr-2 h-4 w-4" />
-                            Generate AI Embeddings
-                          </>
-                        )}
-                      </Button>
-                    )}
-                    
+                  <div className="mt-6">
                     <Button
                       disabled={starting === s.id}
                       onClick={() => startSession(s.id)}

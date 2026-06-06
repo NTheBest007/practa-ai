@@ -276,7 +276,7 @@ function FeedbackList({
         {items.length === 0 ? (
           <li className="text-sm text-white/50">Nothing captured here.</li>
         ) : (
-          items.map((item, idx) => (
+          Array.from(new Set(items)).map((item, idx) => (
             <li
               key={idx}
               className="rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2.5 text-sm text-white/80"
