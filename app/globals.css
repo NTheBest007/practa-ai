@@ -41,15 +41,15 @@ body {
 
 body {
   background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(59, 130, 246, 0.08), transparent 60%),
-    radial-gradient(900px 600px at 110% 10%, rgba(37, 99, 235, 0.06), transparent 60%),
-    radial-gradient(900px 800px at 50% 120%, rgba(29, 78, 216, 0.05), transparent 60%),
+    radial-gradient(1200px 600px at 10% -10%, rgba(16, 185, 129, 0.07), transparent 60%),
+    radial-gradient(900px 600px at 110% 10%, rgba(5, 150, 105, 0.05), transparent 60%),
+    radial-gradient(900px 800px at 50% 120%, rgba(6, 95, 70, 0.05), transparent 60%),
     #070b0a;
   min-height: 100vh;
 }
 
 ::selection {
-  background: rgba(59, 130, 246, 0.35);
+  background: rgba(16, 185, 129, 0.35);
   color: white;
 }
 
@@ -80,10 +80,10 @@ body {
 
 .btn-glow {
   position: relative;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
   box-shadow:
-    0 4px 14px 0 rgba(59, 130, 246, 0.3),
+    0 4px 14px 0 rgba(16, 185, 129, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
   transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
@@ -91,7 +91,7 @@ body {
   transform: translateY(-1px);
   filter: brightness(1.05);
   box-shadow:
-    0 6px 20px 0 rgba(59, 130, 246, 0.4),
+    0 6px 20px 0 rgba(16, 185, 129, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 
@@ -113,7 +113,7 @@ body {
 .aurora::before {
   width: 520px;
   height: 520px;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.3), transparent 60%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.25), transparent 60%);
   top: -120px;
   left: -120px;
   animation: float 16s ease-in-out infinite;
@@ -121,7 +121,7 @@ body {
 .aurora::after {
   width: 620px;
   height: 620px;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.2), transparent 60%);
+  background: radial-gradient(circle, rgba(5, 150, 105, 0.15), transparent 60%);
   bottom: -160px;
   right: -160px;
   animation: float 22s ease-in-out infinite reverse;
