@@ -92,6 +92,18 @@ export async function POST(req: Request) {
         break;
       }
 
+      case 'account.updated': {
+        const account: any = event.data.object;
+        if (account.charges_enabled && account.details_submitted) {
+          await supabase
+            .from('affiliates')
+            .update({ status: 'active' })
+            .eq('stripe_account_id', account.id);
+          console.log('Affiliate account activated:', account.id);
+        }
+        break;
+      }
+
       case 'invoice.payment_succeeded': {
         const invoice: any = event.data.object;
         const subscriptionId = invoice.subscription;
@@ -145,6 +157,29 @@ export async function POST(req: Request) {
             .from('user_subscriptions')
             .update(updateRow)
             .eq('stripe_subscription_id', subscriptionId);
+
+          // Track affiliate commission if this user was referred
+          if (userSub && invoice.amount_paid > 0) {
+            const { data: referral } = await supabase
+              .from('referrals')
+              .select('id, affiliate_id, affiliates!inner(commission_rate, stripe_account_id)')
+              .eq('referred_user_id', userSub.user_id)
+              .maybeSingle();
+
+            if (referral?.affiliates) {
+              const commission = (invoice.amount_paid / 100) * ((referral.affiliates as any).commission_rate || 0.2);
+              // Update referral and affiliate earnings
+              await supabase
+                .from('referrals')
+                .update({ status: 'active', total_commission_earned: commission })
+                .eq('id', referral.id);
+              await supabase
+                .from('affiliates')
+                .update({ total_earned: commission })
+                .eq('id', referral.affiliate_id);
+              console.log('Affiliate commission tracked:', commission, 'for referral:', referral.id);
+            }
+          }
         }
         break;
       }

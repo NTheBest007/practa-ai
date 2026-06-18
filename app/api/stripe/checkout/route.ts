@@ -56,6 +56,21 @@ export async function POST(req: Request) {
     const baseUrl =
       process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
+    // Check if this user was referred by an affiliate
+    let transferData: { destination: string } | undefined;
+    let applicationFeePercent: number | undefined;
+    
+    const { data: referral } = await supabase
+      .from('referrals')
+      .select('affiliate_id, affiliates!inner(stripe_account_id, status, commission_rate)')
+      .eq('referred_user_id', userId)
+      .maybeSingle();
+
+    if (referral?.affiliates && (referral.affiliates as any).status === 'active' && (referral.affiliates as any).stripe_account_id) {
+      transferData = { destination: (referral.affiliates as any).stripe_account_id };
+      applicationFeePercent = 100 - ((referral.affiliates as any).commission_rate * 100);
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       client_reference_id: userId,
@@ -72,6 +87,8 @@ export async function POST(req: Request) {
         metadata: {
           userId,
         },
+        ...(transferData && { transfer_data: transferData }),
+        ...(applicationFeePercent !== undefined && { application_fee_percent: applicationFeePercent }),
       },
     });
 

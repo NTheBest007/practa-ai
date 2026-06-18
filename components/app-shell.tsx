@@ -6,7 +6,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Logo } from './logo';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Sparkles, LogOut, Loader as Loader2, BarChart3, CreditCard } from 'lucide-react';
+import { LayoutDashboard, Sparkles, LogOut, Loader as Loader2, BarChart3, CreditCard, Users } from 'lucide-react';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, loading, signOut } = useAuth();
@@ -29,6 +29,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/scenarios', label: 'Scenarios', icon: Sparkles },
     { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+    { href: '/affiliate', label: 'Affiliate', icon: Users },
     { href: '/pricing', label: 'Pricing', icon: CreditCard },
   ];
 
