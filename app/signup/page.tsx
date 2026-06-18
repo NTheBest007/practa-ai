@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -12,7 +12,7 @@ import { useAuth } from '@/lib/auth-context';
 import { Loader as Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-export default function SignupPage() {
+function SignupForm() {
   const { signUp, signIn } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -113,5 +113,23 @@ export default function SignupPage() {
         </Button>
       </form>
     </AuthShell>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <AuthShell 
+        title="Create your account" 
+        subtitle="Loading..."
+        footer={null}
+      >
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="h-6 w-6 animate-spin text-emerald-400" />
+        </div>
+      </AuthShell>
+    }>
+      <SignupForm />
+    </Suspense>
   );
 }
